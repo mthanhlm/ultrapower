@@ -1,0 +1,15 @@
+{
+  "name": "ultrapower",
+  "owner": { "name": "mthanhlm" },
+  "description": "Ultrapower — a Scrum + XP workflow plugin for Claude Code.",
+  "plugins": [
+    {
+      "name": "up",
+      "source": "./",
+      "description": "Scrum + XP workflow: sprint/backlog management with TDD, codegraph grounding, a navigator review, and an enforced done-gate.",
+      "version": "0.1.0",
+      "category": "workflow",
+      "keywords": ["scrum", "xp", "tdd", "code-quality"]
+    }
+  ]
+}

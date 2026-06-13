@@ -1,0 +1,12 @@
+{
+  "name": "up",
+  "displayName": "Ultrapower",
+  "version": "0.1.0",
+  "description": "Scrum + XP workflow: sprints and a backlog for management; TDD, codegraph-grounded stories, a navigator review pass, and an enforced done-gate for quality.",
+  "author": { "name": "mthanhlm" },
+  "homepage": "https://github.com/mthanhlm/ultrapower",
+  "repository": "https://github.com/mthanhlm/ultrapower",
+  "license": "MIT",
+  "keywords": ["scrum", "xp", "tdd", "workflow", "code-quality", "codegraph"],
+  "hooks": "./hooks/hooks.json"
+}

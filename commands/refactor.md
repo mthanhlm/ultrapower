@@ -20,6 +20,7 @@ before and after. Requires `/up:init`.
      --id refactor --title '<target>' --file <path> [--file <path> ...]
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" mark-red
    ```
+   `--file` paths are repo-root-relative or absolute.
    The existing green tests are the gate, so source edits unlock without a new failing test —
    a refactor adds no behavior, so it needs no new test.
 

@@ -105,6 +105,39 @@ def test_cli_add_file_extends_contract(tmp_path):
     assert os.path.realpath(str(b)) in story["files"]
 
 
+def test_cli_lock_root_anchors_relative_file_from_subdir(tmp_path):
+    (tmp_path / ".git").mkdir()
+    subdir = tmp_path / "sub"
+    subdir.mkdir()
+    result = subprocess.run(
+        [sys.executable, SCRIPT, "lock", "--id", "S9", "--title", "subdir test",
+         "--points", "1", "--file", "tests/foo.py", "--acceptance", "path anchored"],
+        cwd=str(subdir), capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    story = json.loads((tmp_path / ".scrum" / "current-story.json").read_text())
+    expected = os.path.realpath(str(tmp_path / "tests" / "foo.py"))
+    assert story["files"] == [expected], f"got {story['files']!r}, want {[expected]!r}"
+
+
+def test_cli_add_file_root_anchors_relative_file_from_subdir(tmp_path):
+    (tmp_path / ".git").mkdir()
+    subdir = tmp_path / "sub"
+    subdir.mkdir()
+    base = [sys.executable, SCRIPT]
+    subprocess.run(
+        base + ["lock", "--id", "S9", "--file", "a.py"],
+        cwd=str(subdir), capture_output=True, text=True, check=True,
+    )
+    subprocess.run(
+        base + ["add-file", "--file", "b.py"],
+        cwd=str(subdir), capture_output=True, text=True, check=True,
+    )
+    story = json.loads((tmp_path / ".scrum" / "current-story.json").read_text())
+    expected_b = os.path.realpath(str(tmp_path / "b.py"))
+    assert expected_b in story["files"], f"got {story['files']!r}, want {expected_b!r} anchored to root"
+
+
 def test_cli_close_clears_current_story(tmp_path):
     (tmp_path / ".git").mkdir()
     src = tmp_path / "a.py"

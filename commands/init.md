@@ -26,16 +26,28 @@ on these commands being right, so detect — do not guess — and confirm with t
 
 3. **Confirm with the user** via AskUserQuestion: present the detected `test`, `lint`,
    `typecheck`, and `smoke` commands and the default sprint length (7 days). Let them correct
-   any value; offer "you pick" defaults where you are confident.
+   any value; offer "you pick" defaults where you are confident. Also ask whether `.scrum/`
+   should be **`local`** (gitignored, default — recommended for most repos) or **`shared`**
+   (committed, for teams that want scrum state in version control).
 
 4. **Write config + scaffold** with the confirmed values:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" init \
      --test '<test>' --lint '<lint>' --typecheck '<typecheck>' --smoke '<smoke>' \
-     --sprint-days <n> --force
+     --sprint-days <n> --scrum-mode <local|shared> --force
    ```
-   This writes `.scrum/config.json` and creates `backlog.md`, `sprint.md`, `velocity.md`,
-   `retro.md` if absent. It never overwrites the markdown.
+   This writes `.scrum/config.json`, creates `backlog.md`, `sprint.md`, `velocity.md`,
+   `retro.md` if absent, and syncs `.gitignore` according to the chosen visibility.
 
-5. **Report** the written config path back, and point the user to `/up:sprint plan` as the
-   next step. Do not commit `.scrum/` — leave staging to the user.
+5. **Bootstrap codegraph + serena for this project** (non-fatal):
+   ```
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" bootstrap
+   ```
+   This runs `codegraph init <root>` (indexes the project) and `serena project create <root>`
+   (registers the project with serena) via subprocess. Report per-tool ok/FAIL status.
+   A failure does not abort init — the index and project config can be created later by
+   re-running the bootstrap step. Continue to the report step regardless.
+
+6. **Report** the written config path back, and point the user to `/up:sprint plan` as the
+   next step. Commit policy follows the `scrum_visibility` you chose — `local` keeps `.scrum/`
+   gitignored, `shared` commits it.

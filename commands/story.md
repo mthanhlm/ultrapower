@@ -21,7 +21,13 @@ Drive one backlog story. Requires `.scrum/config.json` (`/up:init`). Sub-command
 3. **Confirm with the user.** Present the brief verbatim. The user approves or adjusts scope,
    files, and the estimate. Do not edit any code yet. Iterate until approved.
 
-4. **Lock the contract** with the approved file list:
+4. **Debate plan review.** Invoke the `debate` agent with the BRIEF from step 2 and the proposed
+   file contract. It returns `VERDICT: proceed | revise-plan` and `FINDINGS:` severity-tagged across
+   five lenses. If the verdict is `revise-plan` or any `blocker` findings are open, show the
+   findings to the user, revise the brief or scope together, then re-invoke the `debate` agent until
+   the verdict is `proceed`. Only once `proceed` is returned advance to step 5.
+
+5. **Lock the contract** with the approved file list:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" lock \
      --id <id> --title '<title>' --points <n> \
@@ -29,10 +35,11 @@ Drive one backlog story. Requires `.scrum/config.json` (`/up:init`). Sub-command
      --acceptance '<criterion>' [--acceptance ...] \
      --out '<out-of-scope item>'
    ```
+   `--file` paths are resolved relative to the repo root (or absolute); they are safe to pass from any subdirectory.
    This writes `.scrum/current-story.json`. From now the scope-guard hook blocks edits outside
    `--file`, and the TDD guard blocks source edits until a failing test is observed.
 
-5. **Mark the story `in-progress`** in `.scrum/sprint.md`, then hand off: implement test-first
+6. **Mark the story `in-progress`** in `.scrum/sprint.md`, then hand off: implement test-first
    (the implementer agent runs red → green → refactor) and run `/up:done` when the work is ready.
 
 ## add <description>

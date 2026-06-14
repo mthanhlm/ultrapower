@@ -34,6 +34,8 @@ user the way a good planning session would, not by guessing.
    per the estimation rule — confirms or overrides each point estimate. Iterate until approved.
 
 5. **Write state** with the approved result:
+   - **Renumber pulled-in backlog stories `B`→`S`** — each backlog item (`B<n>`) takes the next free
+     sprint id (`S<n>`) on entering the sprint; the sprint table and `/up:story start` use the new `S` ids.
    - `.scrum/sprint.md` — goal, length (`sprint_length_days` from config), start date
      (`date +%Y-%m-%d`), committed points, and the story table with status `todo`.
    - `.scrum/backlog.md` — remove the pulled-in stories; keep the rest.
@@ -46,5 +48,6 @@ user the way a good planning session would, not by guessing.
 2. Compute committed vs. completed points. Append a row to `.scrum/velocity.md`
    (`| goal | committed | completed |`).
 3. Reset `.scrum/sprint.md` to the no-active-sprint scaffold, moving unfinished stories back
-   into `.scrum/backlog.md`.
+   into `.scrum/backlog.md` — **renumber carried-back stories `S`→`B`** (each takes the next free
+   backlog id), the inverse of the `B`→`S` pull-in.
 4. Summarise the outcome and suggest `/up:retro` to capture lessons before the next `plan`.

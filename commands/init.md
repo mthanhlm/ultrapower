@@ -44,9 +44,13 @@ on these commands being right, so detect — do not guess — and confirm with t
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" bootstrap
    ```
    This runs `codegraph init <root>` (indexes the project) and `serena project create <root>`
-   (registers the project with serena) via subprocess. Report per-tool ok/FAIL status.
-   A failure does not abort init — the index and project config can be created later by
-   re-running the bootstrap step. Continue to the report step regardless.
+   (registers the project with serena) via subprocess, then verifies the **repo-local**
+   `.codegraph/` and `.serena/` directories actually exist in `<root>`. Success is that
+   post-condition, not the command's exit code — so `serena project create` exiting non-zero
+   on a re-init still counts as ok when `.serena/` is present, and a tool exiting 0 without
+   producing its dir is reported FAIL. Both indexes stay repo-local; never the global one.
+   Report per-tool ok/FAIL status. A failure does not abort init — the missing dir can be
+   created later by re-running the bootstrap step. Continue to the report step regardless.
 
 6. **Report** the written config path back, and point the user to `/up:sprint plan` as the
    next step. Commit policy follows the `scrum_visibility` you chose — `local` keeps `.scrum/`

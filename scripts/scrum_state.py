@@ -202,8 +202,8 @@ def check_dependencies(root):
 
 
 _BOOTSTRAP = [
-    ("codegraph", lambda root: ["codegraph", "init", root]),
-    ("serena", lambda root: ["serena", "project", "create", root]),
+    ("codegraph", ".codegraph", lambda root: ["codegraph", "init", root]),
+    ("serena", ".serena", lambda root: ["serena", "project", "create", root]),
 ]
 
 _BOOTSTRAP_TIMEOUT = 120
@@ -212,20 +212,27 @@ _BOOTSTRAP_TIMEOUT = 120
 def bootstrap_tools(root):
     """Run codegraph init and serena project create for the given project root.
 
-    Never raises; non-zero exit or OSError/TimeoutExpired sets ok=False.
-    Returns a list of {"name", "ok", "output"} records.
+    Success is the post-condition that the repo-local index dir (.codegraph/ or
+    .serena/) exists afterward — NOT the command's exit code. This keeps both
+    indexes repo-local and tolerates tools that exit non-zero when the project is
+    already registered (e.g. `serena project create` on a re-init) as long as the
+    local dir is present.
+
+    Never raises; OSError/TimeoutExpired is captured in output.
+    Returns a list of {"name", "ok", "present", "output"} records.
     """
     results = []
-    for name, argv_fn in _BOOTSTRAP:
+    for name, sentinel, argv_fn in _BOOTSTRAP:
         cmd = argv_fn(root)
         try:
             proc = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=_BOOTSTRAP_TIMEOUT)
-            ok = proc.returncode == 0
             output = (proc.stdout + proc.stderr).strip()
         except (subprocess.TimeoutExpired, OSError) as exc:
-            ok = False
             output = str(exc)
-        results.append({"name": name, "ok": ok, "output": output})
+        present = os.path.isdir(os.path.join(root, sentinel))
+        if not present:
+            output = (output + f"\nexpected repo-local {sentinel}/ not found in {root}").strip()
+        results.append({"name": name, "ok": present, "present": present, "output": output})
     return results
 
 
@@ -321,6 +328,8 @@ def _cli(argv=None):
             print(f"  {rec['name']:12} {status}")
             if not rec["ok"] and rec["output"]:
                 print(f"    {rec['output'][:200]}")
+        if all(r["ok"] for r in results):
+            print("  repo-local .codegraph/ and .serena/ present")
         return 0
 
     if os.path.isfile(config_path(root)) and not args.force:

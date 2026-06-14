@@ -1,7 +1,7 @@
 {
   "name": "up",
   "displayName": "Ultrapower",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Scrum + XP workflow: sprints and a backlog for management; TDD, codegraph-grounded stories, a navigator review pass, and an enforced done-gate for quality.",
   "author": {
     "name": "mthanhlm"
@@ -16,6 +16,5 @@
     "workflow",
     "code-quality",
     "codegraph"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }

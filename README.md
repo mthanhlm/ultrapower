@@ -9,12 +9,13 @@ Commands are namespaced `/up:` (the plugin is named `up`).
 ## The loop
 
 ```
-/up:init               once per project — detect verify commands, sprint length, DoD
+/up:init               once per project — detect verify commands + Definition of Done
 /up:sprint plan        guided question-bundle → crisp sprint goal + estimated backlog
 /up:story start <id>   brief + codegraph impact/reuse → you approve → debate pre-lock plan review → file contract locked
   (implement)          TDD: failing test → mark-red → minimal code → refactor
-/up:done               navigator review (blocks on blockers) → done-gate (verify set) → close
+/up:done               navigator + done-gate → auto-mark done, release lock, queue for tutoring
 /up:sprint close       record velocity → /up:retro
+/up:tutor [target]     understand the code to mastery — or drain the pending queue → tutored.md
 ```
 
 ## How to use — a worked example
@@ -59,7 +60,9 @@ revise-plan`) → that file list is **locked** (edits outside it get blocked).
 ```
 The **navigator** reviews your diff against the brief (missing test? a caller you forgot? scope
 creep?) and lists findings. Fix any **blockers**, then the **done-gate** runs your verify set
-(tests + lint + typecheck + smoke). Green + no blockers → the story closes and the increment is tagged.
+(tests + lint + typecheck + smoke). Green + no blockers → the story is **auto-marked `done`**, the
+lock releases, the increment is tagged, and the story is **queued for tutoring** — work the queue
+anytime with `/up:tutor`. No hand-editing of `.scrum/` state.
 
 **5. Repeat & wrap up**
 ```
@@ -70,17 +73,19 @@ creep?) and lists findings. Fix any **blockers**, then the **done-gate** runs yo
 **Reach for these as needed:**
 - `/up:refactor <target>` — restructure with no behavior change (checks every caller via codegraph first, keeps tests green).
 - `/up:story add "<idea>"` — capture a backlog idea without planning it yet.
+- `/up:tutor [target]` — a tutor drills you to mastery over a story's diff, a file/area, the whole project, or a topic; with no target it drains the pending queue. Saves deduped notes to `tutored.md`.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/up:init` | Detect & confirm this project's `test`/`lint`/`typecheck`/`smoke` commands, sprint length, and Definition of Done → `.scrum/config.json`. |
+| `/up:init` | Detect & confirm this project's `test`/`lint`/`typecheck`/`smoke` commands and Definition of Done → `.scrum/config.json`. |
 | `/up:sprint plan` \| `close` | Plan a sprint via a guided question-bundle; close records velocity and seeds the retro. |
 | `/up:story start <id\|desc>` \| `add` | Plan + lock a story (brief, estimate, contract); or quick-add one to the backlog. |
 | `/up:done` | Navigator review + done-gate, then close the active story. |
 | `/up:refactor <target>` | Codegraph-impact-checked refactor with tests green throughout. |
 | `/up:retro` | Short retrospective appended to `.scrum/retro.md`. |
+| `/up:tutor <target>` | Tutor-driven deep-understanding session over a story, a file/area, the whole project, or a topic; saves what you learn to `tutored.md`. |
 
 ## Agents
 
@@ -91,6 +96,7 @@ creep?) and lists findings. Fix any **blockers**, then the **done-gate** runs yo
 | `implementer` | Red → green → refactor inside the locked contract. | sonnet |
 | `navigator` | Read-only review; severity-tagged findings. | opus |
 | `scrum-master` | Sprint planning + close facilitation; velocity. | opus |
+| `teacher` | Read-only tutor; builds a mastery checklist for `/up:tutor`. | opus |
 
 ## What it enforces (hooks)
 
@@ -130,8 +136,10 @@ claude plugin install up@ultrapower
 ## State (`.scrum/`)
 
 Ultrapower keeps per-project state as files under `.scrum/` — `config.json`, `sprint.md`,
-`backlog.md`, `velocity.md`, `retro.md`, and the active `current-story.json`. Commit policy
+`backlog.md`, `velocity.md`, `retro.md`, `tutored.md`, and the active `current-story.json`. Commit policy
 follows your `/up:init` choice (`scrum_visibility`) — `local` → gitignored, `shared` → committed.
+On `/up:sprint close`, `velocity.md` is auto-recorded and a **DRAFT** `retro.md` section is seeded
+for you to edit — derived state is maintained for you, not by hand.
 It is found by walking up from the working directory, so the hooks work from any subdirectory.
 
 ## Develop

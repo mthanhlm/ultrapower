@@ -2,7 +2,7 @@
 """Shared state helpers for the ultrapower plugin's per-project `.scrum/` directory.
 
 Layout under `<project>/.scrum/`:
-  config.json         machine-read: verify commands, sprint length, Definition of Done
+  config.json         machine-read: verify commands, Definition of Done
   current-story.json  machine-read: active story brief, locked file contract, red-test flag
   backlog.md          agent-authored: stories not yet in a sprint
   sprint.md           agent-authored: current sprint goal + committed stories
@@ -24,7 +24,6 @@ import sys
 SCRUM_DIRNAME = ".scrum"
 
 DEFAULT_CONFIG = {
-    "sprint_length_days": 7,
     "scrum_visibility": "local",
     "verify": {"test": "", "lint": "", "typecheck": "", "smoke": ""},
     "definition_of_done": [
@@ -41,6 +40,7 @@ SCAFFOLD = {
     "sprint.md": "# Current Sprint\n\n_No active sprint. Run `/up:sprint plan`._\n",
     "velocity.md": "# Velocity\n\n| Sprint | Goal | Committed | Completed |\n|--------|------|-----------|-----------|\n",
     "retro.md": "# Retrospectives\n",
+    "tutored.md": "# Tutored\n\n_What `/up:tutor` has taught you, tagged by source (a story id or `project`). Deduped._\n",
 }
 
 
@@ -172,6 +172,181 @@ def scaffold(root):
                 f.write(body)
 
 
+def _read_text(path, default=""):
+    try:
+        with open(path) as f:
+            return f.read()
+    except OSError:
+        return default
+
+
+def _set_table_status(text, story_id, status):
+    out = []
+    found = False
+    for line in text.splitlines(keepends=True):
+        body = line.rstrip("\n")
+        cells = body.split("|")
+        if body.startswith("|") and len(cells) >= 4 and cells[1].strip() == story_id:
+            cells[-2] = f" {status} "
+            out.append("|".join(cells) + ("\n" if line.endswith("\n") else ""))
+            found = True
+        else:
+            out.append(line)
+    return "".join(out), found
+
+
+def mark_story_done(root, story_id):
+    """Flip a story's sprint.md row to `done` by id. Idempotent; False if the id is absent."""
+    path = os.path.join(scrum_dir(root), "sprint.md")
+    new_text, found = _set_table_status(_read_text(path), story_id, "done")
+    if found:
+        with open(path, "w") as f:
+            f.write(new_text)
+    return found
+
+
+def record_velocity(root, sprint, goal, committed, completed):
+    """Upsert a velocity row keyed by sprint. True if appended, False if a row was updated in place."""
+    path = os.path.join(scrum_dir(root), "velocity.md")
+    row = f"| {sprint} | {goal} | {committed} | {completed} |"
+    out, replaced = [], False
+    for line in _read_text(path, SCAFFOLD["velocity.md"]).splitlines():
+        cells = line.split("|")
+        if line.startswith("|") and len(cells) >= 5 and cells[1].strip() == str(sprint):
+            out.append(row)
+            replaced = True
+        else:
+            out.append(line)
+    if not replaced:
+        out.append(row)
+    with open(path, "w") as f:
+        f.write("\n".join(out) + "\n")
+    return not replaced
+
+
+def draft_retro(root, sprint, goal, committed, completed):
+    """Append a dated DRAFT retro section to retro.md, newest-first. Skips when a draft for this
+    sprint already exists, so it never clobbers manual edits. True if a draft was added."""
+    path = os.path.join(scrum_dir(root), "retro.md")
+    text = _read_text(path, SCAFFOLD["retro.md"])
+    if f"## Sprint {sprint} —" in text:
+        return False
+    draft = (
+        f"## Sprint {sprint} — DRAFT <!-- edit me, then delete this DRAFT marker -->\n\n"
+        f"_Goal: {goal} · {completed}/{committed} pts completed._\n\n"
+        f"**Went well** — \n\n**Hurt** — \n\n**One change to try** — \n\n"
+        f"**Learned** (seed for `/up:tutor`) — \n\n"
+    )
+    cut = text.find("\n## ")
+    if cut != -1:
+        new = text[:cut + 1] + draft + text[cut + 1:]
+    else:
+        new = text.rstrip("\n") + "\n\n" + draft
+    with open(path, "w") as f:
+        f.write(new)
+    return True
+
+
+def _normalize_topic(topic):
+    return " ".join(topic.lower().split())
+
+
+def _learning_topics(text, source):
+    topics = set()
+    in_section = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            in_section = line[3:].strip() == source
+        elif in_section and line.startswith("- "):
+            topics.add(_normalize_topic(line[2:].split(" — ", 1)[0]))
+    return topics
+
+
+def record_learning(root, source, topic, note=""):
+    """Append a learning under its `## <source>` section in tutored.md, deduped by
+    (source, normalized topic). Returns False when an equivalent entry already exists."""
+    path = os.path.join(scrum_dir(root), "tutored.md")
+    text = _read_text(path, SCAFFOLD["tutored.md"])
+    if _normalize_topic(topic) in _learning_topics(text, source):
+        return False
+    entry = "- " + topic + (f" — {note}" if note else "")
+    lines = text.splitlines()
+    header = f"## {source}"
+    if header in lines:
+        insert_at = lines.index(header) + 1
+        start = insert_at
+        while insert_at < len(lines) and not lines[insert_at].startswith("## "):
+            insert_at += 1
+        while insert_at > start and lines[insert_at - 1].strip() == "":
+            insert_at -= 1
+        lines.insert(insert_at, entry)
+    else:
+        if lines and lines[-1].strip() != "":
+            lines.append("")
+        lines += [header, entry]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return True
+
+
+def _pending_ids(text):
+    ids, in_pending = [], False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            in_pending = line[3:].strip() == "Pending"
+        elif in_pending and line.startswith("- "):
+            ids.append(line[2:].split(" — ", 1)[0].strip())
+    return ids
+
+
+def list_pending(root):
+    return _pending_ids(_read_text(os.path.join(scrum_dir(root), "tutored.md"), SCAFFOLD["tutored.md"]))
+
+
+def queue_tutor(root, story_id, title=""):
+    """Add a story to the '## Pending' tutoring queue in tutored.md, deduped by id.
+    Returns False if it is already queued."""
+    path = os.path.join(scrum_dir(root), "tutored.md")
+    text = _read_text(path, SCAFFOLD["tutored.md"])
+    if story_id in _pending_ids(text):
+        return False
+    entry = f"- {story_id}" + (f" — {title}" if title else "")
+    lines = text.splitlines()
+    if "## Pending" in lines:
+        i = lines.index("## Pending") + 1
+        while i < len(lines) and not lines[i].startswith("## "):
+            i += 1
+        while i > 0 and lines[i - 1].strip() == "":
+            i -= 1
+        lines.insert(i, entry)
+    else:
+        cut = next((k for k, ln in enumerate(lines) if ln.startswith("## ")), len(lines))
+        section = ["## Pending", "", entry, ""]
+        if cut > 0 and lines[cut - 1].strip() != "":
+            section = [""] + section
+        lines[cut:cut] = section
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return True
+
+
+def unqueue_tutor(root, story_id):
+    """Remove a story from the '## Pending' queue. Returns True if it was present."""
+    path = os.path.join(scrum_dir(root), "tutored.md")
+    out, in_pending, removed = [], False, False
+    for line in _read_text(path, SCAFFOLD["tutored.md"]).splitlines():
+        if line.startswith("## "):
+            in_pending = line[3:].strip() == "Pending"
+        elif in_pending and line.startswith("- ") and line[2:].split(" — ", 1)[0].strip() == story_id:
+            removed = True
+            continue
+        out.append(line)
+    if removed:
+        with open(path, "w") as f:
+            f.write("\n".join(out) + "\n")
+    return removed
+
+
 _MCP_DEPS = [
     ("codegraph", "claude mcp add codegraph -- codegraph serve --mcp"),
     ("serena", "claude mcp add serena -- serena start-mcp-server --context=claude-code --project-from-cwd"),
@@ -246,7 +421,6 @@ def _cli(argv=None):
     p_init.add_argument("--lint", default="")
     p_init.add_argument("--typecheck", default="")
     p_init.add_argument("--smoke", default="")
-    p_init.add_argument("--sprint-days", type=int, default=7)
     p_init.add_argument("--force", action="store_true")
     p_init.add_argument("--scrum-mode", choices=["local", "shared"], default="local")
     p_lock = sub.add_parser("lock")
@@ -258,6 +432,27 @@ def _cli(argv=None):
     p_lock.add_argument("--out", action="append", default=[], dest="out_of_scope")
     p_addfile = sub.add_parser("add-file")
     p_addfile.add_argument("--file", action="append", default=[], dest="files", required=True)
+    p_markdone = sub.add_parser("mark-done")
+    p_markdone.add_argument("--id", required=True)
+    p_vel = sub.add_parser("record-velocity")
+    p_vel.add_argument("--sprint", required=True)
+    p_vel.add_argument("--goal", default="")
+    p_vel.add_argument("--committed", type=int, default=0)
+    p_vel.add_argument("--completed", type=int, default=0)
+    p_retro = sub.add_parser("draft-retro")
+    p_retro.add_argument("--sprint", required=True)
+    p_retro.add_argument("--goal", default="")
+    p_retro.add_argument("--committed", type=int, default=0)
+    p_retro.add_argument("--completed", type=int, default=0)
+    p_learn = sub.add_parser("record-learning")
+    p_learn.add_argument("--source", required=True)
+    p_learn.add_argument("--topic", required=True)
+    p_learn.add_argument("--note", default="")
+    p_pend = sub.add_parser("tutor-pending")
+    p_pend.add_argument("--add")
+    p_pend.add_argument("--title", default="")
+    p_pend.add_argument("--remove")
+    p_pend.add_argument("--list", action="store_true")
     sub.add_parser("mark-red")
     sub.add_parser("close")
     sub.add_parser("show")
@@ -286,6 +481,32 @@ def _cli(argv=None):
         story["files"] = sorted(set(story["files"]) | {os.path.realpath(f if os.path.isabs(f) else os.path.join(root, f)) for f in args.files})
         save_current_story(root, story)
         print(current_story_path(root))
+        return 0
+    if args.cmd == "mark-done":
+        found = mark_story_done(root, args.id)
+        print(f"marked {args.id} done" if found else f"{args.id} not in sprint.md",
+              file=sys.stdout if found else sys.stderr)
+        return 0 if found else 1
+    if args.cmd == "record-velocity":
+        appended = record_velocity(root, args.sprint, args.goal, args.committed, args.completed)
+        print("velocity recorded" if appended else "velocity updated")
+        return 0
+    if args.cmd == "draft-retro":
+        added = draft_retro(root, args.sprint, args.goal, args.committed, args.completed)
+        print("retro draft added" if added else "retro draft already exists — left untouched")
+        return 0
+    if args.cmd == "record-learning":
+        added = record_learning(root, args.source, args.topic, args.note)
+        print("learning recorded" if added else "already recorded — skipped (deduped)")
+        return 0
+    if args.cmd == "tutor-pending":
+        if args.add:
+            print("queued for tutoring" if queue_tutor(root, args.add, args.title) else "already queued")
+        elif args.remove:
+            print("removed from queue" if unqueue_tutor(root, args.remove) else "not in queue")
+        else:
+            ids = list_pending(root)
+            print("\n".join(ids) if ids else "(none pending)")
         return 0
     if args.cmd == "mark-red":
         story = load_current_story(root)
@@ -336,7 +557,6 @@ def _cli(argv=None):
         print(json.dumps(load_config(root), indent=2))
         return 0
     cfg = copy.deepcopy(DEFAULT_CONFIG)
-    cfg["sprint_length_days"] = args.sprint_days
     cfg["scrum_visibility"] = args.scrum_mode
     cfg["verify"] = {"test": args.test, "lint": args.lint, "typecheck": args.typecheck, "smoke": args.smoke}
     save_config(root, cfg)

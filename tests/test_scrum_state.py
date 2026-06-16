@@ -18,7 +18,7 @@ def test_find_project_root_uses_git_marker(tmp_path):
 
 def test_config_defaults_when_missing(tmp_path):
     cfg = scrum_state.load_config(str(tmp_path))
-    assert cfg["sprint_length_days"] == 7
+    assert "sprint_length_days" not in cfg
     assert "test" in cfg["verify"]
 
 
@@ -41,13 +41,13 @@ def test_current_story_round_trip(tmp_path):
 def test_cli_init_writes_config_and_scaffold(tmp_path):
     (tmp_path / ".git").mkdir()
     result = subprocess.run(
-        [sys.executable, SCRIPT, "init", "--test", "pytest -q", "--sprint-days", "14"],
+        [sys.executable, SCRIPT, "init", "--test", "pytest -q"],
         cwd=str(tmp_path), capture_output=True, text=True,
     )
     assert result.returncode == 0, result.stderr
     cfg = json.loads((tmp_path / ".scrum" / "config.json").read_text())
     assert cfg["verify"]["test"] == "pytest -q"
-    assert cfg["sprint_length_days"] == 14
+    assert "sprint_length_days" not in cfg
     for name in ("backlog.md", "sprint.md", "velocity.md", "retro.md"):
         assert (tmp_path / ".scrum" / name).is_file()
 
@@ -147,3 +147,167 @@ def test_cli_close_clears_current_story(tmp_path):
                    capture_output=True, text=True, check=True)
     subprocess.run(base + ["close"], cwd=str(tmp_path), capture_output=True, text=True, check=True)
     assert not (tmp_path / ".scrum" / "current-story.json").exists()
+
+
+def _write_sprint(tmp_path, rows):
+    scrum_state.ensure_scrum(str(tmp_path))
+    body = "# Current Sprint\n\n| ID | Story | Points | Status |\n|----|-------|--------|--------|\n" + rows
+    (tmp_path / ".scrum" / "sprint.md").write_text(body)
+    return tmp_path / ".scrum" / "sprint.md"
+
+
+def test_mark_story_done_flips_only_its_row(tmp_path):
+    sprint = _write_sprint(tmp_path, "| S1 | first | 3 | todo |\n| S2 | second | 5 | in-progress |\n")
+    assert scrum_state.mark_story_done(str(tmp_path), "S2") is True
+    body = sprint.read_text()
+    assert "| S2 | second | 5 | done |" in body
+    assert "| S1 | first | 3 | todo |" in body
+
+
+def test_mark_story_done_idempotent_and_missing_id(tmp_path):
+    sprint = _write_sprint(tmp_path, "| S1 | first | 3 | todo |\n")
+    assert scrum_state.mark_story_done(str(tmp_path), "S1") is True
+    once = sprint.read_text()
+    assert scrum_state.mark_story_done(str(tmp_path), "S1") is True
+    assert sprint.read_text() == once
+    assert scrum_state.mark_story_done(str(tmp_path), "S9") is False
+
+
+def test_record_velocity_appends_then_upserts(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    vel = tmp_path / ".scrum" / "velocity.md"
+    vel.write_text(scrum_state.SCAFFOLD["velocity.md"])
+    assert scrum_state.record_velocity(str(tmp_path), "2", "ship it", 40, 11) is True
+    assert "| 2 | ship it | 40 | 11 |" in vel.read_text()
+    assert scrum_state.record_velocity(str(tmp_path), "2", "ship it", 40, 26) is False
+    body = vel.read_text()
+    assert "| 2 | ship it | 40 | 26 |" in body
+    assert body.count("| 2 |") == 1
+
+
+def test_cli_mark_done_and_record_velocity(tmp_path):
+    sprint = _write_sprint(tmp_path, "| S7 | a story | 2 | in-progress |\n")
+    (tmp_path / ".scrum" / "velocity.md").write_text(scrum_state.SCAFFOLD["velocity.md"])
+    base = [sys.executable, SCRIPT]
+    r1 = subprocess.run(base + ["mark-done", "--id", "S7"], cwd=str(tmp_path),
+                        capture_output=True, text=True)
+    assert r1.returncode == 0, r1.stderr
+    assert "| S7 | a story | 2 | done |" in sprint.read_text()
+    r2 = subprocess.run(base + ["record-velocity", "--sprint", "3", "--goal", "g",
+                                "--committed", "9", "--completed", "9"],
+                        cwd=str(tmp_path), capture_output=True, text=True)
+    assert r2.returncode == 0, r2.stderr
+    assert "| 3 | g | 9 | 9 |" in (tmp_path / ".scrum" / "velocity.md").read_text()
+
+
+def test_draft_retro_appends_newest_first_and_preserves(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    retro = tmp_path / ".scrum" / "retro.md"
+    retro.write_text("# Retrospectives\n\n## 2026-01-01 — Sprint 1 (old)\n\nkeep me\n")
+    assert scrum_state.draft_retro(str(tmp_path), "2", "ship it", 40, 26) is True
+    body = retro.read_text()
+    assert "## Sprint 2 — DRAFT" in body
+    assert "Learned" in body
+    assert "keep me" in body
+    assert body.index("## Sprint 2 — DRAFT") < body.index("## 2026-01-01 — Sprint 1")
+
+
+def test_draft_retro_dedupes_per_sprint(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    retro = tmp_path / ".scrum" / "retro.md"
+    retro.write_text(scrum_state.SCAFFOLD["retro.md"])
+    assert scrum_state.draft_retro(str(tmp_path), "2", "g", 5, 5) is True
+    first = retro.read_text()
+    assert scrum_state.draft_retro(str(tmp_path), "2", "g", 5, 5) is False
+    assert retro.read_text() == first
+    assert first.count("## Sprint 2 —") == 1
+
+
+def test_cli_draft_retro(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    (tmp_path / ".scrum" / "retro.md").write_text(scrum_state.SCAFFOLD["retro.md"])
+    r = subprocess.run([sys.executable, SCRIPT, "draft-retro", "--sprint", "2",
+                        "--goal", "g", "--committed", "5", "--completed", "5"],
+                       cwd=str(tmp_path), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert "## Sprint 2 — DRAFT" in (tmp_path / ".scrum" / "retro.md").read_text()
+
+
+def test_scaffold_creates_tutored_md(tmp_path):
+    assert "tutored.md" in scrum_state.SCAFFOLD
+    scrum_state.scaffold(str(tmp_path))
+    assert (tmp_path / ".scrum" / "tutored.md").is_file()
+
+
+def test_record_learning_dedupes_within_source(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    learned = tmp_path / ".scrum" / "tutored.md"
+    learned.write_text(scrum_state.SCAFFOLD["tutored.md"])
+    assert scrum_state.record_learning(str(tmp_path), "project", "Event loop basics", "why") is True
+    assert scrum_state.record_learning(str(tmp_path), "project", "event loop BASICS") is False
+    body = learned.read_text()
+    assert body.count("Event loop basics") == 1
+    assert "## project" in body
+
+
+def test_record_learning_separate_per_source(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    learned = tmp_path / ".scrum" / "tutored.md"
+    learned.write_text(scrum_state.SCAFFOLD["tutored.md"])
+    assert scrum_state.record_learning(str(tmp_path), "project", "Topic A") is True
+    assert scrum_state.record_learning(str(tmp_path), "S4", "Topic A") is True
+    body = learned.read_text()
+    assert "## project" in body and "## S4" in body
+    assert body.count("Topic A") == 2
+
+
+def test_cli_record_learning(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    (tmp_path / ".scrum" / "tutored.md").write_text(scrum_state.SCAFFOLD["tutored.md"])
+    r = subprocess.run([sys.executable, SCRIPT, "record-learning", "--source", "project",
+                        "--topic", "TDD red-green", "--note", "write the test first"],
+                       cwd=str(tmp_path), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert "TDD red-green" in (tmp_path / ".scrum" / "tutored.md").read_text()
+
+
+def test_queue_tutor_add_list_dedupe_remove(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    tutored = tmp_path / ".scrum" / "tutored.md"
+    tutored.write_text(scrum_state.SCAFFOLD["tutored.md"])
+    assert scrum_state.queue_tutor(str(tmp_path), "S3", "ceiling") is True
+    assert scrum_state.queue_tutor(str(tmp_path), "S3", "ceiling") is False
+    assert scrum_state.list_pending(str(tmp_path)) == ["S3"]
+    body = tutored.read_text()
+    assert "## Pending" in body and "- S3 — ceiling" in body
+    assert scrum_state.unqueue_tutor(str(tmp_path), "S3") is True
+    assert scrum_state.list_pending(str(tmp_path)) == []
+    assert scrum_state.unqueue_tutor(str(tmp_path), "S3") is False
+
+
+def test_pending_and_learnings_stay_separate(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    tutored = tmp_path / ".scrum" / "tutored.md"
+    tutored.write_text(scrum_state.SCAFFOLD["tutored.md"])
+    scrum_state.queue_tutor(str(tmp_path), "S3", "ceiling")
+    scrum_state.record_learning(str(tmp_path), "S3", "size signal not budget")
+    body = tutored.read_text()
+    assert "## Pending" in body and "## S3" in body
+    assert "size signal not budget" in body
+    assert scrum_state.list_pending(str(tmp_path)) == ["S3"]
+
+
+def test_cli_tutor_pending(tmp_path):
+    scrum_state.ensure_scrum(str(tmp_path))
+    (tmp_path / ".scrum" / "tutored.md").write_text(scrum_state.SCAFFOLD["tutored.md"])
+    base = [sys.executable, SCRIPT]
+    subprocess.run(base + ["tutor-pending", "--add", "S6", "--title", "wire done"],
+                   cwd=str(tmp_path), capture_output=True, text=True, check=True)
+    out = subprocess.run(base + ["tutor-pending", "--list"], cwd=str(tmp_path),
+                         capture_output=True, text=True)
+    assert "S6" in out.stdout
+    subprocess.run(base + ["tutor-pending", "--remove", "S6"], cwd=str(tmp_path),
+                   capture_output=True, text=True, check=True)
+    out2 = subprocess.run(base + ["tutor-pending", "--list"], cwd=str(tmp_path),
+                          capture_output=True, text=True)
+    assert "S6" not in out2.stdout

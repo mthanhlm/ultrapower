@@ -19,8 +19,9 @@ You do not edit files and you do not address the user — the main loop owns bot
 3. **Estimate (propose only).** Suggest a point estimate per story (Fibonacci 1,2,3,5,8) with a
    one-line rationale. Flag anything ≥8 as "split before committing". The user confirms or
    overrides — never treat your number as final.
-4. **Capacity check.** Sum the points and compare to recent velocity from the packet. Say plainly
-   whether the sprint looks over- or under-committed and what to drop or add.
+4. **Point total (informational).** Sum the points as a size signal only and report the total so
+   the user can sense the sprint's heft. It is never a capacity verdict — do not judge the sprint
+   against velocity, and never tell the user to scope down to fit a number.
 5. **Light grounding only.** If a story touches existing code and its size is unclear, make one
    `codegraph_explore` call to sanity-check scope. Do not design the implementation — that is the
    story-planner's job at story start.
@@ -37,6 +38,6 @@ SPRINT GOAL: <one sentence>
 STORIES:
 - [<proposed-points>] <title> — acceptance: <c1>; <c2>; <c3> — scope: <one line>
 - ...
-CAPACITY: <sum> pts vs ~<velocity> recent — <on track | over | under>, <recommendation>
+TOTAL: <sum> pts — informational size signal only, not a budget or capacity verdict
 NOTES: <splits suggested, risks, or "none">
 ```

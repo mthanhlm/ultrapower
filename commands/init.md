@@ -1,5 +1,5 @@
 ---
-description: Initialise ultrapower in this project — detect verify commands, set sprint length + Definition of Done, scaffold .scrum/.
+description: Initialise ultrapower in this project — detect verify commands and the Definition of Done, scaffold .scrum/.
 argument-hint: "[--force]"
 allowed-tools: Bash, Read, Glob, Write, AskUserQuestion
 ---
@@ -25,7 +25,7 @@ on these commands being right, so detect — do not guess — and confirm with t
    If you cannot find one, leave `smoke` empty rather than inventing it.
 
 3. **Confirm with the user** via AskUserQuestion: present the detected `test`, `lint`,
-   `typecheck`, and `smoke` commands and the default sprint length (7 days). Let them correct
+   `typecheck`, and `smoke` commands. Let them correct
    any value; offer "you pick" defaults where you are confident. Also ask whether `.scrum/`
    should be **`local`** (gitignored, default — recommended for most repos) or **`shared`**
    (committed, for teams that want scrum state in version control).
@@ -34,7 +34,7 @@ on these commands being right, so detect — do not guess — and confirm with t
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" init \
      --test '<test>' --lint '<lint>' --typecheck '<typecheck>' --smoke '<smoke>' \
-     --sprint-days <n> --scrum-mode <local|shared> --force
+     --scrum-mode <local|shared> --force
    ```
    This writes `.scrum/config.json`, creates `backlog.md`, `sprint.md`, `velocity.md`,
    `retro.md` if absent, and syncs `.gitignore` according to the chosen visibility.

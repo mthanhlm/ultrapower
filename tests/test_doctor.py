@@ -11,7 +11,6 @@ SETUP_MD = os.path.join(ROOT, "commands", "setup.md")
 
 def _make_config(tmp_path, verify):
     scrum_state.save_config(str(tmp_path), {
-        "sprint_length_days": 7,
         "verify": verify,
     })
 

@@ -313,33 +313,9 @@ def test_cli_tutor_pending(tmp_path):
     assert "S6" not in out2.stdout
 
 
-def test_lean_mode_default(tmp_path, monkeypatch):
-    monkeypatch.delenv("UP_LEAN_MODE", raising=False)
-    assert scrum_state.DEFAULT_CONFIG["lean_mode"] == "full"
-    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "full"
-
-
-def test_lean_mode_resolution_precedence(tmp_path, monkeypatch):
-    cfg = scrum_state.load_config(str(tmp_path))
-    cfg["lean_mode"] = "lite"
-    scrum_state.save_config(str(tmp_path), cfg)
-    monkeypatch.delenv("UP_LEAN_MODE", raising=False)
-    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "lite"
-    monkeypatch.setenv("UP_LEAN_MODE", "ultra")
-    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "ultra"
-    monkeypatch.setenv("UP_LEAN_MODE", "bogus")
-    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "lite"
-
-
-def test_lean_mode_off_yields_empty_ladder():
-    assert scrum_state.ladder_text("off") == ""
-
-
-def test_ladder_text_filters_to_active_mode():
-    full = scrum_state.ladder_text("full")
-    assert "Does this need to exist" in full
-    assert "**full**" in full
-    assert "**lite**" not in full and "**ultra**" not in full
+def test_ladder_text_returns_body():
+    body = scrum_state.ladder_text()
+    assert "Does this need to exist" in body
 
 
 def test_ladder_file_exists_and_has_rungs():

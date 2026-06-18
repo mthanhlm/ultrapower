@@ -12,13 +12,13 @@ Commands are namespaced `/up:` (the plugin is named `up`).
 
 ```
 /up:init               once per project — detect verify commands + Definition of Done
-/up:lean [level]       dial the always-on lean ladder (lite|full|ultra|off; default full)
 /up:sprint plan        guided question-bundle → crisp sprint goal + estimated backlog
 /up:story start <id>   brief + codegraph impact/reuse → you approve → debate pre-lock plan review → file contract locked
   (implement)          TDD: failing test → mark-red → minimal code → refactor
 /up:done               navigator + done-gate → auto-mark done, release lock, queue for tutoring
-/up:sprint close       record velocity → /up:retro
+/up:sprint close       record velocity + capture a 3-bullet retro → /up:sprint plan
 /up:tutor [target]     understand the code to mastery — or drain the pending queue → tutored.md
+(always-on)            the lean ladder is injected every session — YAGNI → stdlib → native → one line
 ```
 
 ## How to use — a worked example
@@ -69,8 +69,7 @@ anytime with `/up:tutor`. No hand-editing of `.scrum/` state.
 
 **5. Repeat & wrap up**
 ```
-/up:sprint close     # records velocity for next sprint's planning
-/up:retro            # quick 3-bullet retrospective
+/up:sprint close     # records velocity + asks a quick 3-bullet retro
 ```
 
 **Reach for these as needed:**
@@ -82,14 +81,10 @@ anytime with `/up:tutor`. No hand-editing of `.scrum/` state.
 
 | Command | What it does |
 |---|---|
-| `/up:init` | Detect & confirm this project's `test`/`lint`/`typecheck`/`smoke` commands and Definition of Done → `.scrum/config.json`. |
-| `/up:lean [lite\|full\|ultra\|off]` | Dial the always-on lean ladder's intensity (default `full`); persists as `lean_mode`. |
-| `/up:sprint plan` \| `close` | Plan a sprint via a guided question-bundle; close records velocity and seeds the retro. |
+| `/up:init` | Detect & confirm this project's `test`/`lint`/`typecheck`/`smoke` commands and Definition of Done → `.scrum/config.json`. || `/up:sprint plan` \| `close` | Plan a sprint via a guided question-bundle; close records velocity and captures a quick retro. |
 | `/up:story start <id\|desc>` \| `add` | Plan + lock a story (brief, estimate, contract); or quick-add one to the backlog. |
 | `/up:done` | Navigator review + done-gate, then close the active story. |
-| `/up:refactor <target>` | Codegraph-impact-checked refactor with tests green throughout. |
-| `/up:retro` | Short retrospective appended to `.scrum/retro.md`. |
-| `/up:tutor <target>` | Tutor-driven deep-understanding session over a story, a file/area, the whole project, or a topic; saves what you learn to `tutored.md`. |
+| `/up:refactor <target>` | Codegraph-impact-checked refactor with tests green throughout. || `/up:tutor <target>` | Tutor-driven deep-understanding session over a story, a file/area, the whole project, or a topic; saves what you learn to `tutored.md`. |
 
 ## Agents
 
@@ -109,13 +104,12 @@ anytime with `/up:tutor`. No hand-editing of `.scrum/` state.
 - **comment-noise** — rejects narration comments; keeps only why-notes, TODO/FIXME, `lean:` markers, lint directives.
 - **done-gate** — `/up:done` runs the configured verify set; a story cannot close on a red gate or
   with open blocker findings.
-- **lean-inject / lean-mode** — inject the lean ladder (`lean/ladder.md`) at your `lean_mode` every
-  session and track `/up:lean` switches. The lean layer is adapted from
-  [ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
+- **lean-inject** — injects the lean ladder (`lean/ladder.md`) into every session. The lean layer is
+  adapted from [ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 
 No active story ⇒ the scope/TDD/comment guards are inert, so ad-hoc work and projects that don't use
 ultrapower are unaffected. The lean ladder is the exception — it's injected per project (wherever
-`.scrum/` exists) at your `lean_mode`, story or not; `/up:lean off` silences it.
+`.scrum/` exists), story or not.
 
 ## Install
 
@@ -143,11 +137,11 @@ claude plugin install up@ultrapower
 
 ## State (`.scrum/`)
 
-Ultrapower keeps per-project state as files under `.scrum/` — `config.json` (incl. your `lean_mode`),
+Ultrapower keeps per-project state as files under `.scrum/` — `config.json`,
 `sprint.md`, `backlog.md`, `velocity.md`, `retro.md`, `tutored.md`, and the active `current-story.json`.
 Commit policy follows your `/up:init` choice (`scrum_visibility`) — `local` → gitignored, `shared` → committed.
-On `/up:sprint close`, `velocity.md` is auto-recorded and a **DRAFT** `retro.md` section is seeded
-for you to edit — derived state is maintained for you, not by hand.
+On `/up:sprint close`, `velocity.md` is auto-recorded and the `retro.md` section is captured from a
+few quick questions — derived state is maintained for you, not by hand.
 It is found by walking up from the working directory, so the hooks work from any subdirectory.
 
 ## Develop

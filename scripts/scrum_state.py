@@ -26,7 +26,6 @@ SCRUM_DIRNAME = ".scrum"
 
 DEFAULT_CONFIG = {
     "scrum_visibility": "local",
-    "lean_mode": "full",
     "verify": {"test": "", "lint": "", "typecheck": "", "smoke": ""},
     "definition_of_done": [
         "tests pass",
@@ -110,44 +109,16 @@ def set_visibility(root, mode):
     save_config(root, cfg)
 
 
-LEAN_MODES = ("off", "lite", "full", "ultra")
-DEFAULT_LEAN_MODE = "full"
 _LADDER_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lean", "ladder.md")
 
 
-def _normalize_lean_mode(value):
-    if isinstance(value, str) and value.strip().lower() in LEAN_MODES:
-        return value.strip().lower()
-    return None
-
-
-def resolve_lean_mode(root):
-    """Active lean intensity: UP_LEAN_MODE env > config `lean_mode` > `full`. Invalid values ignored."""
-    return (_normalize_lean_mode(os.environ.get("UP_LEAN_MODE"))
-            or _normalize_lean_mode(load_config(root).get("lean_mode"))
-            or DEFAULT_LEAN_MODE)
-
-
-def _filter_ladder_for_mode(body, mode):
-    # lean: keyed off **mode** tokens in the one Intensity table; a second mode-named table would need anchoring
-    others = tuple(f"**{m}**" for m in LEAN_MODES if m != mode)
-    return "\n".join(
-        line for line in body.splitlines()
-        if not (line.lstrip().startswith("|") and any(tok in line for tok in others))
-    )
-
-
-def ladder_text(mode=DEFAULT_LEAN_MODE, path=_LADDER_PATH):
-    """The lean ladder filtered to `mode`. Empty when mode is `off` or the file is unreadable."""
-    mode = _normalize_lean_mode(mode) or DEFAULT_LEAN_MODE
-    if mode == "off":
-        return ""
+def ladder_text(path=_LADDER_PATH):
+    """The lean ladder, injected verbatim every session. Empty when the file is unreadable."""
     try:
         with open(path) as f:
-            body = f.read()
+            return f.read()
     except (OSError, ValueError):
         return ""
-    return _filter_ladder_for_mode(body, mode)
 
 
 # lean: line grep, not a per-language parser — can match lean: inside string literals; parse per-language if the noise bites

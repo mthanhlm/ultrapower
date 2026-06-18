@@ -1,5 +1,5 @@
 ---
-description: Plan or close a sprint. `plan` runs a guided question-bundle to set a crisp sprint goal + clear backlog; `close` records velocity.
+description: Plan or close a sprint. `plan` runs a guided question-bundle to set a crisp sprint goal + clear backlog; `close` records velocity and captures the retro.
 argument-hint: "plan | close"
 allowed-tools: Bash, Read, Glob, Write, AskUserQuestion, Agent
 ---
@@ -49,11 +49,16 @@ user the way a good planning session would, not by guessing.
 2. Compute committed (sum of all story points) and completed (sum of `done` points), then record
    them automatically — no hand-editing:
    - `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" record-velocity --sprint <n> --goal '<goal>' --committed <c> --completed <m>` upserts the `.scrum/velocity.md` row;
-   - `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" draft-retro --sprint <n> --goal '<goal>' --committed <c> --completed <m>` seeds a dated **DRAFT** section in `.scrum/retro.md` (newest-first, never clobbering your edits) for `/up:retro` to refine.
-3. Reset `.scrum/sprint.md` to the no-active-sprint scaffold, moving unfinished stories back
+   - `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" draft-retro --sprint <n> --goal '<goal>' --committed <c> --completed <m>` seeds a dated **DRAFT** section in `.scrum/retro.md` (newest-first, never clobbering your edits).
+3. **Capture the retro inline** — no separate command. Ask the user one small AskUserQuestion
+   bundle: what went well, what slowed you down, and the single change to try next sprint. Offer
+   "you pick" defaults drawn from the velocity numbers and the sprint outcome. The user may skip —
+   then leave the seeded **DRAFT** as-is. Otherwise replace the draft's seed bullets with the
+   answers and delete the `DRAFT` marker, keeping it to three: Went well / Hurt / One change to try.
+4. Reset `.scrum/sprint.md` to the no-active-sprint scaffold, moving unfinished stories back
    into `.scrum/backlog.md` — **renumber carried-back stories `S`→`B`** (each takes the next free
    backlog id), the inverse of the `B`→`S` pull-in.
-4. **Harvest the lean debt.** Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" lean-debt`
+5. **Harvest the lean debt.** Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" lean-debt`
    (whole repo) and include the deferred-marker count, and any `[no-trigger]` rot, in the summary —
    so the shortcuts this sprint accumulated are visible before the next `plan`.
-5. Summarise the outcome and suggest `/up:retro` to capture lessons before the next `plan`.
+6. Summarise the outcome and suggest `/up:sprint plan` to start the next sprint with that change in mind.

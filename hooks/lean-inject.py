@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""SessionStart hook: inject the lean ladder at the project's configured intensity.
+"""SessionStart hook: inject the lean ladder into every ultrapower session.
 
-Silent when lean is off, the ladder is unreadable, or the project has no .scrum/ (so
-non-ultrapower repos are untouched). Fail-open.
+Silent when the ladder is unreadable or the project has no .scrum/ (so non-ultrapower
+repos are untouched). Fail-open.
 """
 import json
 import os
@@ -18,7 +18,7 @@ def main():
     root = scrum_state.find_project_root(data.get("cwd") or os.getcwd())
     if not os.path.isdir(scrum_state.scrum_dir(root)):
         return
-    text = scrum_state.ladder_text(scrum_state.resolve_lean_mode(root))
+    text = scrum_state.ladder_text()
     if not text:
         return
     print(json.dumps({"hookSpecificOutput": {

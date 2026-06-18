@@ -24,13 +24,6 @@
           { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/lean-inject.py\"" }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/lean-mode.py\"" }
-        ]
-      }
     ]
   }
 }

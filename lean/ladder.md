@@ -26,15 +26,6 @@ The ladder is a reflex, not a research project. Two rungs work → take the high
   A shortcut with a known ceiling names the ceiling and the upgrade path:
   `# lean: global lock, per-account locks if throughput matters`.
 
-## Intensity
-
-| Mode | Behaviour |
-|------|-----------|
-| **lite** | Build what's asked, but name the lazier alternative in one line. You pick. |
-| **full** | The ladder enforced — stdlib and native first, shortest diff, shortest explanation. Default. |
-| **ultra** | YAGNI extremist. Deletion before addition. Ship the one-liner and challenge the rest. |
-| **off** | Lean disabled — the ladder is not injected; `/up:lean full` re-enables it. |
-
 ## When NOT to be lazy
 
 Never simplify away: input validation at trust boundaries, error handling that prevents data

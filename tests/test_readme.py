@@ -63,11 +63,6 @@ def test_debate_row_pipe_count_matches_sibling():
     )
 
 
-def test_commands_table_has_lean_row():
-    body = _body()
-    assert re.search(r"(?m)^\|\s*`?/up:lean", body), "Commands table must contain a '/up:lean' row"
-
-
 def test_loop_mentions_lean_ladder():
     body = _body()
     loop_match = re.search(r"## The loop\s*```.*?```", body, re.DOTALL)
@@ -79,18 +74,3 @@ def test_loop_mentions_lean_ladder():
 def test_debate_described_as_six_lenses():
     # S5/S6 made debate + navigator six lenses; the README wording must match.
     assert "five lenses" not in _body(), "debate is now six lenses — reconcile the README wording"
-
-
-def test_lean_row_pipe_count_matches_sibling():
-    body = _body()
-
-    def unescaped_pipe_count(row: str) -> int:
-        return len(re.findall(r"(?<!\\)\|", row))
-
-    lean_row = re.search(r"(?m)^\|[^\n]*`/up:lean[^\n]*\|$", body)
-    done_row = re.search(r"(?m)^\|[^\n]*`/up:done`[^\n]*\|$", body)
-    assert lean_row, "/up:lean row not found in Commands table"
-    assert done_row, "/up:done row not found in Commands table"
-    assert unescaped_pipe_count(lean_row.group(0)) == unescaped_pipe_count(done_row.group(0)), (
-        "/up:lean row has a different number of unescaped '|' delimiters than the /up:done row"
-    )

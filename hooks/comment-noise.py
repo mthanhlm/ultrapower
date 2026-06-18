@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""PostToolUse hook: reject narration comments in code the agent just wrote.
+"""PostToolUse hook: reject pure narration comments in code the agent just wrote.
 
-Keeps only short non-obvious why-notes; bans step markers, restated code, and change logs.
-Exit 2 sends the offending lines back so they are cleaned up immediately. Fail-open otherwise.
+High-PRECISION on purpose: it should only catch comments that restate mechanics and add no
+reason, never a legitimate why-note. Three guards against false positives:
+  - only single-line `//` and `#` comments are inspected (JSDoc/`*` doc bodies and `--` SQL prose
+    are left alone — they were the worst false-positive sources);
+  - a comment carrying a rationale connective (because / to avoid / so that / …) is always kept,
+    even if it opens with a narration verb ("get the lock first to avoid deadlock");
+  - only SHORT comments can be narration — a long sentence is explaining something, not narrating.
+Exit 2 sends the offending lines back. Fail-open otherwise.
 """
 import json
 import os
@@ -24,6 +30,16 @@ ALLOWED = re.compile(
     re.I,
 )
 
+# A rationale connective means the comment is explaining WHY — never narration. Keep it.
+# Phrase forms only: bare domain nouns (race/cycle/fallback) are too easily part of pure narration
+# ("# update the cycle counter"), so a rationale must be an actual connective.
+RATIONALE = re.compile(
+    r"\b(because|since|so that|so it|so we|so the|to avoid|to prevent|to ensure|to keep|to stop|"
+    r"to handle|to work around|in order to|otherwise|due to|avoids?|prevents?|ensures?|"
+    r"workaround|edge case)\b",
+    re.I,
+)
+
 NARRATION = [
     re.compile(r"^(step\s*\d|first,?\s|now\s|next,?\s|then\s|finally,?\s)", re.I),
     re.compile(
@@ -38,7 +54,13 @@ NARRATION = [
     re.compile(r"^(here\swe\b|we\s(now|then|first|just)\b)", re.I),
 ]
 
-COMMENT_LINE = re.compile(r"^\s*(//+|#+|\*+|/\*+|--)\s*(.*)$")
+# Only `//` and `#` line comments — block-comment/JSDoc (`*`, `/*`) and SQL (`--`) prose are exempt.
+COMMENT_LINE = re.compile(r"^\s*(//+|#+)\s*(.*)$")
+
+# A genuine narration comment is terse; a longer line is carrying an explanation. The NARRATION
+# patterns already require a narration verb/structure at line start, so a slightly higher cap stays
+# precise while catching the 7–10 word restated-mechanics lines that 6 let through.
+MAX_NARRATION_WORDS = 10
 
 
 def noisy_lines(text):
@@ -48,7 +70,9 @@ def noisy_lines(text):
         if not m:
             continue
         body = m.group(2).strip()
-        if not body or ALLOWED.search(line):
+        if not body or ALLOWED.search(line) or RATIONALE.search(body):
+            continue
+        if len(body.split()) > MAX_NARRATION_WORDS:
             continue
         if any(p.match(body) for p in NARRATION):
             hits.append(line.strip())
@@ -61,8 +85,11 @@ def main():
     raw = next((tool_input[k] for k in PATH_KEYS if tool_input.get(k)), None)
     if not raw or os.path.splitext(raw)[1].lower() not in CODE_EXTS:
         return 0
-    added = "\n".join(tool_input[k] for k in TEXT_KEYS if isinstance(tool_input.get(k), str))
-    hits = noisy_lines(added)
+    texts = [tool_input[k] for k in TEXT_KEYS if isinstance(tool_input.get(k), str)]
+    # MultiEdit carries written text in edits[i]["new_string"], not a top-level key.
+    texts += [e["new_string"] for e in (tool_input.get("edits") or [])
+              if isinstance(e, dict) and isinstance(e.get("new_string"), str)]
+    hits = noisy_lines("\n".join(texts))
     if not hits:
         return 0
     print(

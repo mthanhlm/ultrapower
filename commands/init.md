@@ -1,57 +1,58 @@
 ---
-description: Initialise ultrapower in this project — detect verify commands and the Definition of Done, scaffold .scrum/.
+description: Initialise ultrapower in this project — check deps, detect verify commands, scaffold .scrum/. One-time per project.
 argument-hint: "[--force]"
 allowed-tools: Bash, Read, Glob, Write, AskUserQuestion
 ---
 
-Set up ultrapower for the current project. This is the one-time, per-project step that
-teaches the plugin how to verify code here. Everything ultrapower enforces later depends
-on these commands being right, so detect — do not guess — and confirm with the user.
+Set up ultrapower for the current project. This is the one-time, per-project step that teaches the
+plugin how to verify code here. Everything the plugin enforces later depends on these commands being
+right, so detect — do not guess — and confirm with the user.
 
 ## Steps
 
-1. **Check for existing config**
-   Run: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" show`
-   If a config already exists and `$ARGUMENTS` does not contain `--force`, show it and ask
-   whether to reconfigure. Stop if the user declines.
+1. **Check dependencies first (folded-in doctor).** Run:
+   `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" doctor`
+   It probes whether the **codegraph** and **serena** MCP servers are *registered with Claude Code*
+   (via `claude mcp list`, not a bare PATH check) plus any verify tools. Present the output as-is.
+   For any `[MISSING]` MCP dep, show the printed `claude mcp add …` line and tell the user to run it
+   manually — never run installers yourself. The planning/review agents need these; warn that
+   without them `/up:plan` and `/up:run` fall back to Read+Grep and lose codegraph grounding.
 
-2. **Detect candidate verify commands** by reading the repo (not from memory):
-   - Node: `package.json` scripts → `test`, `lint`, `typecheck` (or `tsc --noEmit`), and a
-     dev/build command that proves it boots (`smoke`).
-   - Python: `pyproject.toml` / `tox.ini` / `Makefile` → `pytest`, `ruff check` / `flake8`,
-     `mypy`, and a run command (`smoke`).
-   - Otherwise use the ecosystem's conventional commands (go test/vet, cargo test/clippy, …).
-   `smoke` must be a real run/boot check — XP's "it actually works" — not another static check.
-   If you cannot find one, leave `smoke` empty rather than inventing it.
+2. **Migrate an old layout (if present).** If any of `sprint.md`, `velocity.md`, `backlog.md`,
+   `retro.md`, `tutored.md` exist under `.scrum/`, this repo used a pre-0.5 version. Print their
+   contents **once** so nothing is silently lost, tell the user they are superseded by `plan.json`
+   (which `/up:plan` writes) and can be deleted, and leave the old files on disk — do not delete user
+   data. The new flow is `/up:plan` → `/up:run` → `/up:status`.
 
-3. **Confirm with the user** via AskUserQuestion: present the detected `test`, `lint`,
-   `typecheck`, and `smoke` commands. Let them correct
-   any value; offer "you pick" defaults where you are confident. Also ask whether `.scrum/`
-   should be **`local`** (gitignored, default — recommended for most repos) or **`shared`**
-   (committed, for teams that want scrum state in version control).
+3. **Check for existing config.** Run `scrum_state.py show`. If a config exists and `$ARGUMENTS`
+   lacks `--force`, show it and ask whether to reconfigure; stop if the user declines.
 
-4. **Write config + scaffold** with the confirmed values:
+4. **Detect candidate verify commands** by reading the repo (not from memory):
+   - Node: `package.json` scripts → `test`, `lint`, `typecheck` (or `tsc --noEmit`), and a dev/build
+     command that proves it boots (`smoke`).
+   - Python: `pyproject.toml` / `tox.ini` / `Makefile` → `pytest`, `ruff check` / `flake8`, `mypy`,
+     and a run command (`smoke`).
+   - Otherwise the ecosystem's conventional commands (go test/vet, cargo test/clippy, …).
+   `smoke` must be a real run/boot check — XP's "it actually works" — **not** another static check,
+   and **not** a watch/serve command (it must exit; the done-gate times each check out at 120s).
+
+5. **Confirm with the user** via AskUserQuestion: present the detected `test`/`lint`/`typecheck`/
+   `smoke`. Let them correct any value. If `smoke` or `typecheck` came back empty, say so plainly —
+   "the gate will NOT prove it boots / typechecks; pick a command or accept the gap" — rather than
+   writing a silent "". `.scrum/` is always local (gitignored); there is no visibility choice.
+
+6. **Write config + scaffold:**
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" init \
-     --test '<test>' --lint '<lint>' --typecheck '<typecheck>' --smoke '<smoke>' \
-     --scrum-mode <local|shared> --force
+     --test '<test>' --lint '<lint>' --typecheck '<typecheck>' --smoke '<smoke>' --force
    ```
-   This writes `.scrum/config.json`, creates `backlog.md`, `sprint.md`, `velocity.md`,
-   `retro.md` if absent, and syncs `.gitignore` according to the chosen visibility.
+   This writes `.scrum/config.json` and gitignores `.scrum/`, `.serena/`, `.codegraph/`.
 
-5. **Bootstrap codegraph + serena for this project** (non-fatal):
-   ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" bootstrap
-   ```
-   This runs `codegraph init <root>` (indexes the project) and `serena project create <root>`
-   (registers the project with serena) via subprocess, then verifies the **repo-local**
-   `.codegraph/` and `.serena/` directories actually exist in `<root>`. Success is that
-   post-condition, not the command's exit code — so `serena project create` exiting non-zero
-   on a re-init still counts as ok when `.serena/` is present, and a tool exiting 0 without
-   producing its dir is reported FAIL. Both indexes stay repo-local; never the global one.
-   Report per-tool ok/FAIL status. A failure does not abort init — the missing dir can be
-   created later by re-running the bootstrap step. Continue to the report step regardless.
+7. **Bootstrap codegraph + serena for this project** (non-fatal):
+   `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" bootstrap`
+   Indexes the project (`codegraph init`) and registers it with serena (`serena project create`),
+   then verifies the repo-local `.codegraph/` and `.serena/` dirs exist — success is that
+   post-condition, not exit code. Report per-tool ok/FAIL; a failure does not abort init (re-run
+   later). Both indexes stay repo-local.
 
-6. **Report** the written config path back, and point the user to `/up:sprint plan` as the
-   next step. Commit policy follows the `scrum_visibility` you chose — `local` keeps `.scrum/`
-   gitignored, `shared` commits it.
+8. **Report** the config path and point the user to `/up:plan <task>` as the next step.

@@ -9,6 +9,15 @@ import scrum_state  # noqa: E402
 SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "scrum_state.py")
 
 
+def _run(args, cwd, check=True):
+    r = subprocess.run([sys.executable, SCRIPT, *args], cwd=str(cwd), capture_output=True, text=True)
+    if check:
+        assert r.returncode == 0, r.stderr
+    return r
+
+
+# --- roots, config -----------------------------------------------------------
+
 def test_find_project_root_uses_git_marker(tmp_path):
     (tmp_path / ".git").mkdir()
     nested = tmp_path / "a" / "b"
@@ -18,7 +27,8 @@ def test_find_project_root_uses_git_marker(tmp_path):
 
 def test_config_defaults_when_missing(tmp_path):
     cfg = scrum_state.load_config(str(tmp_path))
-    assert "sprint_length_days" not in cfg
+    assert "scrum_visibility" not in cfg
+    assert "definition_of_done" not in cfg
     assert "test" in cfg["verify"]
 
 
@@ -30,292 +40,349 @@ def test_loaded_config_does_not_leak_into_default(tmp_path):
     assert scrum_state.DEFAULT_CONFIG["verify"]["test"] == ""
 
 
-def test_current_story_round_trip(tmp_path):
-    assert scrum_state.load_current_story(str(tmp_path)) is None
-    scrum_state.save_current_story(str(tmp_path), {"id": "S1", "files": ["/x/a.py"]})
-    assert scrum_state.load_current_story(str(tmp_path))["id"] == "S1"
-    scrum_state.clear_current_story(str(tmp_path))
-    assert scrum_state.load_current_story(str(tmp_path)) is None
-
-
-def test_cli_init_writes_config_and_scaffold(tmp_path):
+def test_cli_init_writes_config_and_gitignores_scrum(tmp_path):
     (tmp_path / ".git").mkdir()
-    result = subprocess.run(
-        [sys.executable, SCRIPT, "init", "--test", "pytest -q"],
-        cwd=str(tmp_path), capture_output=True, text=True,
-    )
-    assert result.returncode == 0, result.stderr
+    r = _run(["init", "--test", "pytest -q"], tmp_path)
     cfg = json.loads((tmp_path / ".scrum" / "config.json").read_text())
     assert cfg["verify"]["test"] == "pytest -q"
-    assert "sprint_length_days" not in cfg
-    for name in ("backlog.md", "sprint.md", "velocity.md", "retro.md"):
-        assert (tmp_path / ".scrum" / name).is_file()
+    assert "scrum_visibility" not in cfg
+    assert ".scrum/" in (tmp_path / ".gitignore").read_text()
+    assert r.returncode == 0
 
 
 def test_cli_init_preserves_existing_without_force(tmp_path):
     (tmp_path / ".git").mkdir()
-    base = [sys.executable, SCRIPT, "init"]
-    subprocess.run(base + ["--test", "first"], cwd=str(tmp_path), capture_output=True, text=True)
-    subprocess.run(base + ["--test", "second"], cwd=str(tmp_path), capture_output=True, text=True)
+    _run(["init", "--test", "first"], tmp_path)
+    _run(["init", "--test", "second"], tmp_path)
     cfg = json.loads((tmp_path / ".scrum" / "config.json").read_text())
     assert cfg["verify"]["test"] == "first"
+
+
+# --- the active locked step --------------------------------------------------
+
+def test_current_story_round_trip(tmp_path):
+    assert scrum_state.load_current_story(str(tmp_path)) is None
+    scrum_state.save_current_story(str(tmp_path), {"id": "1", "files": ["/x/a.py"]})
+    assert scrum_state.load_current_story(str(tmp_path))["id"] == "1"
+    scrum_state.clear_current_story(str(tmp_path))
+    assert scrum_state.load_current_story(str(tmp_path)) is None
 
 
 def test_cli_lock_writes_current_story(tmp_path):
     (tmp_path / ".git").mkdir()
     src = tmp_path / "a.py"
     src.write_text("x = 1\n")
-    result = subprocess.run(
-        [sys.executable, SCRIPT, "lock", "--id", "S3", "--title", "do a thing",
-         "--points", "3", "--file", str(src), "--acceptance", "it works"],
-        cwd=str(tmp_path), capture_output=True, text=True,
-    )
-    assert result.returncode == 0, result.stderr
+    _run(["lock", "--id", "3", "--title", "do a thing", "--points", "3",
+          "--file", str(src), "--acceptance", "it works"], tmp_path)
     story = json.loads((tmp_path / ".scrum" / "current-story.json").read_text())
-    assert story["id"] == "S3"
-    assert story["red_test_observed"] is False
+    assert story["id"] == "3"
+    assert story["red_criteria"] == []
     assert story["status"] == "in-progress"
     assert story["files"] == [os.path.realpath(str(src))]
-
-
-def test_cli_mark_red_sets_flag(tmp_path):
-    (tmp_path / ".git").mkdir()
-    src = tmp_path / "a.py"
-    src.write_text("x = 1\n")
-    base = [sys.executable, SCRIPT]
-    subprocess.run(base + ["lock", "--id", "S1", "--file", str(src)], cwd=str(tmp_path),
-                   capture_output=True, text=True, check=True)
-    subprocess.run(base + ["mark-red"], cwd=str(tmp_path), capture_output=True, text=True, check=True)
-    story = json.loads((tmp_path / ".scrum" / "current-story.json").read_text())
-    assert story["red_test_observed"] is True
-
-
-def test_cli_add_file_extends_contract(tmp_path):
-    (tmp_path / ".git").mkdir()
-    a = tmp_path / "a.py"
-    a.write_text("x = 1\n")
-    b = tmp_path / "b.py"
-    b.write_text("y = 2\n")
-    base = [sys.executable, SCRIPT]
-    subprocess.run(base + ["lock", "--id", "S1", "--file", str(a)], cwd=str(tmp_path),
-                   capture_output=True, text=True, check=True)
-    subprocess.run(base + ["add-file", "--file", str(b)], cwd=str(tmp_path),
-                   capture_output=True, text=True, check=True)
-    story = json.loads((tmp_path / ".scrum" / "current-story.json").read_text())
-    assert os.path.realpath(str(b)) in story["files"]
 
 
 def test_cli_lock_root_anchors_relative_file_from_subdir(tmp_path):
     (tmp_path / ".git").mkdir()
     subdir = tmp_path / "sub"
     subdir.mkdir()
-    result = subprocess.run(
-        [sys.executable, SCRIPT, "lock", "--id", "S9", "--title", "subdir test",
-         "--points", "1", "--file", "tests/foo.py", "--acceptance", "path anchored"],
-        cwd=str(subdir), capture_output=True, text=True,
-    )
-    assert result.returncode == 0, result.stderr
+    _run(["lock", "--id", "9", "--file", "tests/foo.py", "--acceptance", "path anchored"], subdir)
     story = json.loads((tmp_path / ".scrum" / "current-story.json").read_text())
-    expected = os.path.realpath(str(tmp_path / "tests" / "foo.py"))
-    assert story["files"] == [expected], f"got {story['files']!r}, want {[expected]!r}"
+    assert story["files"] == [os.path.realpath(str(tmp_path / "tests" / "foo.py"))]
 
 
-def test_cli_add_file_root_anchors_relative_file_from_subdir(tmp_path):
+def test_cli_add_file_extends_contract_anchored_to_root(tmp_path):
     (tmp_path / ".git").mkdir()
     subdir = tmp_path / "sub"
     subdir.mkdir()
-    base = [sys.executable, SCRIPT]
-    subprocess.run(
-        base + ["lock", "--id", "S9", "--file", "a.py"],
-        cwd=str(subdir), capture_output=True, text=True, check=True,
-    )
-    subprocess.run(
-        base + ["add-file", "--file", "b.py"],
-        cwd=str(subdir), capture_output=True, text=True, check=True,
-    )
+    _run(["lock", "--id", "1", "--file", "a.py"], subdir)
+    _run(["add-file", "--file", "b.py"], subdir)
     story = json.loads((tmp_path / ".scrum" / "current-story.json").read_text())
-    expected_b = os.path.realpath(str(tmp_path / "b.py"))
-    assert expected_b in story["files"], f"got {story['files']!r}, want {expected_b!r} anchored to root"
+    assert os.path.realpath(str(tmp_path / "b.py")) in story["files"]
 
 
 def test_cli_close_clears_current_story(tmp_path):
     (tmp_path / ".git").mkdir()
-    src = tmp_path / "a.py"
-    src.write_text("x = 1\n")
-    base = [sys.executable, SCRIPT]
-    subprocess.run(base + ["lock", "--id", "S1", "--file", str(src)], cwd=str(tmp_path),
-                   capture_output=True, text=True, check=True)
-    subprocess.run(base + ["close"], cwd=str(tmp_path), capture_output=True, text=True, check=True)
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _run(["lock", "--id", "1", "--file", str(tmp_path / "a.py")], tmp_path)
+    _run(["close"], tmp_path)
     assert not (tmp_path / ".scrum" / "current-story.json").exists()
 
 
-def _write_sprint(tmp_path, rows):
-    scrum_state.ensure_scrum(str(tmp_path))
-    body = "# Current Sprint\n\n| ID | Story | Points | Status |\n|----|-------|--------|--------|\n" + rows
-    (tmp_path / ".scrum" / "sprint.md").write_text(body)
-    return tmp_path / ".scrum" / "sprint.md"
+# --- per-criterion TDD latch -------------------------------------------------
+
+def test_red_unlocked_reads_per_criterion(tmp_path):
+    assert scrum_state.red_unlocked(None) is False
+    assert scrum_state.red_unlocked({"red_criteria": []}) is False
+    assert scrum_state.red_unlocked({"red_criteria": ["c1"]}) is True
 
 
-def test_mark_story_done_flips_only_its_row(tmp_path):
-    sprint = _write_sprint(tmp_path, "| S1 | first | 3 | todo |\n| S2 | second | 5 | in-progress |\n")
-    assert scrum_state.mark_story_done(str(tmp_path), "S2") is True
-    body = sprint.read_text()
-    assert "| S2 | second | 5 | done |" in body
-    assert "| S1 | first | 3 | todo |" in body
+def test_criteria_covered_is_identity_based_not_count():
+    ok, missing = scrum_state.criteria_covered({"acceptance": ["a", "b"], "red_criteria": ["a"]})
+    assert ok is False and missing == 1
+    ok, missing = scrum_state.criteria_covered({"acceptance": ["a", "b"], "red_criteria": ["a", "b"]})
+    assert ok is True and missing == 0
+    # junk reds must NOT count toward coverage even if they outnumber the criteria
+    ok, missing = scrum_state.criteria_covered({"acceptance": ["a", "b"], "red_criteria": ["x", "y", "z"]})
+    assert ok is False and missing == 2
+    ok, _ = scrum_state.criteria_covered({"acceptance": [], "red_criteria": []})
+    assert ok is True  # refactor / no criteria
 
 
-def test_mark_story_done_idempotent_and_missing_id(tmp_path):
-    sprint = _write_sprint(tmp_path, "| S1 | first | 3 | todo |\n")
-    assert scrum_state.mark_story_done(str(tmp_path), "S1") is True
-    once = sprint.read_text()
-    assert scrum_state.mark_story_done(str(tmp_path), "S1") is True
-    assert sprint.read_text() == once
-    assert scrum_state.mark_story_done(str(tmp_path), "S9") is False
+def test_is_code_file_inverts_to_non_code_denylist():
+    # unlisted languages and extensionless source default to code (governed); docs/config do not.
+    for code in ("a.py", "a.ex", "a.lua", "a.dart", "a.clj", "Dockerfile", "Makefile", "run"):
+        assert scrum_state.is_code_file(code) is True, code
+    for noncode in ("README.md", "config.yaml", "data.json", "x.toml", "LICENSE", "pic.png"):
+        assert scrum_state.is_code_file(noncode) is False, noncode
 
 
-def test_record_velocity_appends_then_upserts(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    vel = tmp_path / ".scrum" / "velocity.md"
-    vel.write_text(scrum_state.SCAFFOLD["velocity.md"])
-    assert scrum_state.record_velocity(str(tmp_path), "2", "ship it", 40, 11) is True
-    assert "| 2 | ship it | 40 | 11 |" in vel.read_text()
-    assert scrum_state.record_velocity(str(tmp_path), "2", "ship it", 40, 26) is False
-    body = vel.read_text()
-    assert "| 2 | ship it | 40 | 26 |" in body
-    assert body.count("| 2 |") == 1
+def test_cli_mark_red_and_check_tdd_gate(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _run(["lock", "--id", "1", "--file", str(tmp_path / "a.py"),
+          "--acceptance", "rejects empty", "--acceptance", "rejects spaces"], tmp_path)
+    assert _run(["check-tdd"], tmp_path, check=False).returncode == 1  # 0 reds, 2 criteria
+    _run(["mark-red", "--criterion", "rejects empty"], tmp_path)
+    assert _run(["check-tdd"], tmp_path, check=False).returncode == 1  # 1 red, still short
+    _run(["mark-red", "--criterion", "rejects spaces"], tmp_path)
+    assert _run(["check-tdd"], tmp_path, check=False).returncode == 0  # covered
 
 
-def test_cli_mark_done_and_record_velocity(tmp_path):
-    sprint = _write_sprint(tmp_path, "| S7 | a story | 2 | in-progress |\n")
-    (tmp_path / ".scrum" / "velocity.md").write_text(scrum_state.SCAFFOLD["velocity.md"])
-    base = [sys.executable, SCRIPT]
-    r1 = subprocess.run(base + ["mark-done", "--id", "S7"], cwd=str(tmp_path),
-                        capture_output=True, text=True)
-    assert r1.returncode == 0, r1.stderr
-    assert "| S7 | a story | 2 | done |" in sprint.read_text()
-    r2 = subprocess.run(base + ["record-velocity", "--sprint", "3", "--goal", "g",
-                                "--committed", "9", "--completed", "9"],
-                        cwd=str(tmp_path), capture_output=True, text=True)
-    assert r2.returncode == 0, r2.stderr
-    assert "| 3 | g | 9 | 9 |" in (tmp_path / ".scrum" / "velocity.md").read_text()
+def test_cli_check_tdd_passes_for_refactor_without_red(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _run(["lock", "--id", "1", "--file", str(tmp_path / "a.py"), "--kind", "refactor"], tmp_path)
+    assert _run(["check-tdd"], tmp_path, check=False).returncode == 0
 
 
-def test_draft_retro_appends_newest_first_and_preserves(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    retro = tmp_path / ".scrum" / "retro.md"
-    retro.write_text("# Retrospectives\n\n## 2026-01-01 — Sprint 1 (old)\n\nkeep me\n")
-    assert scrum_state.draft_retro(str(tmp_path), "2", "ship it", 40, 26) is True
-    body = retro.read_text()
-    assert "## Sprint 2 — DRAFT" in body
-    assert "Learned" in body
-    assert "keep me" in body
-    assert body.index("## Sprint 2 — DRAFT") < body.index("## 2026-01-01 — Sprint 1")
+def test_cli_check_tdd_fails_when_nonrefactor_has_no_acceptance(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _run(["lock", "--id", "1", "--file", str(tmp_path / "a.py")], tmp_path)  # no acceptance, story kind
+    assert _run(["check-tdd"], tmp_path, check=False).returncode == 1
 
 
-def test_draft_retro_dedupes_per_sprint(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    retro = tmp_path / ".scrum" / "retro.md"
-    retro.write_text(scrum_state.SCAFFOLD["retro.md"])
-    assert scrum_state.draft_retro(str(tmp_path), "2", "g", 5, 5) is True
-    first = retro.read_text()
-    assert scrum_state.draft_retro(str(tmp_path), "2", "g", 5, 5) is False
-    assert retro.read_text() == first
-    assert first.count("## Sprint 2 —") == 1
+def test_cli_mark_red_rejects_unmatched_criterion(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _run(["lock", "--id", "1", "--file", str(tmp_path / "a.py"),
+          "--acceptance", "rejects empty", "--acceptance", "rejects spaces"], tmp_path)
+    # bare mark-red and junk labels are refused — can't be used to inflate the count
+    assert _run(["mark-red"], tmp_path, check=False).returncode == 1
+    assert _run(["mark-red", "--criterion", "garbage"], tmp_path, check=False).returncode == 1
+    assert scrum_state.load_current_story(str(tmp_path))["red_criteria"] == []
 
 
-def test_cli_draft_retro(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    (tmp_path / ".scrum" / "retro.md").write_text(scrum_state.SCAFFOLD["retro.md"])
-    r = subprocess.run([sys.executable, SCRIPT, "draft-retro", "--sprint", "2",
-                        "--goal", "g", "--committed", "5", "--completed", "5"],
-                       cwd=str(tmp_path), capture_output=True, text=True)
-    assert r.returncode == 0, r.stderr
-    assert "## Sprint 2 — DRAFT" in (tmp_path / ".scrum" / "retro.md").read_text()
+def test_blind_mark_red_cannot_game_check_tdd(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _run(["lock", "--id", "1", "--file", str(tmp_path / "a.py"),
+          "--acceptance", "c one", "--acceptance", "c two"], tmp_path)
+    for _ in range(5):  # five blind attempts must NOT satisfy a 2-criterion gate
+        _run(["mark-red"], tmp_path, check=False)
+    assert _run(["check-tdd"], tmp_path, check=False).returncode == 1
+    _run(["mark-red", "--criterion", "C ONE"], tmp_path)   # case/space-insensitive match
+    _run(["mark-red", "--criterion", "c two"], tmp_path)
+    assert _run(["check-tdd"], tmp_path, check=False).returncode == 0
 
 
-def test_scaffold_creates_tutored_md(tmp_path):
-    assert "tutored.md" in scrum_state.SCAFFOLD
-    scrum_state.scaffold(str(tmp_path))
-    assert (tmp_path / ".scrum" / "tutored.md").is_file()
+def test_cli_lock_rejects_id_not_in_plan(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    r = _run(["lock", "--id", "99", "--file", "a.py"], tmp_path, check=False)
+    assert r.returncode == 1 and "not in the plan" in r.stderr
+    assert scrum_state.load_current_story(str(tmp_path)) is None  # no phantom lock written
 
 
-def test_record_learning_dedupes_within_source(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    learned = tmp_path / ".scrum" / "tutored.md"
-    learned.write_text(scrum_state.SCAFFOLD["tutored.md"])
-    assert scrum_state.record_learning(str(tmp_path), "project", "Event loop basics", "why") is True
-    assert scrum_state.record_learning(str(tmp_path), "project", "event loop BASICS") is False
-    body = learned.read_text()
-    assert body.count("Event loop basics") == 1
-    assert "## project" in body
+def test_cli_lock_rejects_refactor_with_acceptance(tmp_path):
+    (tmp_path / ".git").mkdir()
+    r = _run(["lock", "--id", "1", "--file", "a.py", "--kind", "refactor",
+              "--acceptance", "new behaviour"], tmp_path, check=False)
+    assert r.returncode == 1
+    assert scrum_state.load_current_story(str(tmp_path)) is None
 
 
-def test_record_learning_separate_per_source(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    learned = tmp_path / ".scrum" / "tutored.md"
-    learned.write_text(scrum_state.SCAFFOLD["tutored.md"])
-    assert scrum_state.record_learning(str(tmp_path), "project", "Topic A") is True
-    assert scrum_state.record_learning(str(tmp_path), "S4", "Topic A") is True
-    body = learned.read_text()
-    assert "## project" in body and "## S4" in body
-    assert body.count("Topic A") == 2
+def test_cli_lock_rejects_oversized_file_contract(tmp_path):
+    (tmp_path / ".git").mkdir()
+    files = []
+    for i in range(7):  # > MAX_CONTRACT_FILES (6)
+        files += ["--file", f"f{i}.py"]
+    r = _run(["lock", "--id", "1", *files], tmp_path, check=False)
+    assert r.returncode == 1 and "files" in r.stderr
+    assert scrum_state.load_current_story(str(tmp_path)) is None
 
 
-def test_cli_record_learning(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    (tmp_path / ".scrum" / "tutored.md").write_text(scrum_state.SCAFFOLD["tutored.md"])
-    r = subprocess.run([sys.executable, SCRIPT, "record-learning", "--source", "project",
-                        "--topic", "TDD red-green", "--note", "write the test first"],
-                       cwd=str(tmp_path), capture_output=True, text=True)
-    assert r.returncode == 0, r.stderr
-    assert "TDD red-green" in (tmp_path / ".scrum" / "tutored.md").read_text()
+def test_cli_lock_allows_oversized_when_plan_step_marked(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "big", "--oversized", "atomic migration"], tmp_path)
+    files = []
+    for i in range(8):
+        files += ["--file", f"f{i}.py"]
+    assert _run(["lock", "--id", "1", *files], tmp_path, check=False).returncode == 0
 
 
-def test_queue_tutor_add_list_dedupe_remove(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    tutored = tmp_path / ".scrum" / "tutored.md"
-    tutored.write_text(scrum_state.SCAFFOLD["tutored.md"])
-    assert scrum_state.queue_tutor(str(tmp_path), "S3", "ceiling") is True
-    assert scrum_state.queue_tutor(str(tmp_path), "S3", "ceiling") is False
-    assert scrum_state.list_pending(str(tmp_path)) == ["S3"]
-    body = tutored.read_text()
-    assert "## Pending" in body and "- S3 — ceiling" in body
-    assert scrum_state.unqueue_tutor(str(tmp_path), "S3") is True
-    assert scrum_state.list_pending(str(tmp_path)) == []
-    assert scrum_state.unqueue_tutor(str(tmp_path), "S3") is False
+def test_cli_close_marks_step_done(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    _run(["plan-add", "--id", "2", "--title", "b"], tmp_path)
+    _run(["lock", "--id", "1", "--file", "a.py"], tmp_path)
+    _run(["close"], tmp_path)  # close alone must mark done — no separate step-status needed
+    assert scrum_state.get_step(str(tmp_path), "1")["status"] == "done"
+    assert scrum_state.next_todo_step(str(tmp_path))["id"] == "2"
 
 
-def test_pending_and_learnings_stay_separate(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    tutored = tmp_path / ".scrum" / "tutored.md"
-    tutored.write_text(scrum_state.SCAFFOLD["tutored.md"])
-    scrum_state.queue_tutor(str(tmp_path), "S3", "ceiling")
-    scrum_state.record_learning(str(tmp_path), "S3", "size signal not budget")
-    body = tutored.read_text()
-    assert "## Pending" in body and "## S3" in body
-    assert "size signal not budget" in body
-    assert scrum_state.list_pending(str(tmp_path)) == ["S3"]
+def test_cli_plan_step_emits_full_contract(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "v", "--points", "2",
+          "--file", "v.py", "--acceptance", "c1", "--out", "no DNS", "--kind", "story"], tmp_path)
+    out = _run(["plan-step", "--id", "1"], tmp_path)
+    step = json.loads(out.stdout)
+    assert step["acceptance"] == ["c1"] and step["out_of_scope"] == ["no DNS"]
+    assert step["points"] == 2 and step["kind"] == "story"
+    assert step["files"][0].endswith("v.py")
 
 
-def test_cli_tutor_pending(tmp_path):
-    scrum_state.ensure_scrum(str(tmp_path))
-    (tmp_path / ".scrum" / "tutored.md").write_text(scrum_state.SCAFFOLD["tutored.md"])
-    base = [sys.executable, SCRIPT]
-    subprocess.run(base + ["tutor-pending", "--add", "S6", "--title", "wire done"],
-                   cwd=str(tmp_path), capture_output=True, text=True, check=True)
-    out = subprocess.run(base + ["tutor-pending", "--list"], cwd=str(tmp_path),
-                         capture_output=True, text=True)
-    assert "S6" in out.stdout
-    subprocess.run(base + ["tutor-pending", "--remove", "S6"], cwd=str(tmp_path),
-                   capture_output=True, text=True, check=True)
-    out2 = subprocess.run(base + ["tutor-pending", "--list"], cwd=str(tmp_path),
-                          capture_output=True, text=True)
-    assert "S6" not in out2.stdout
+def test_plan_add_dedups_normalizing_id_type(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "first"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "rewritten"], tmp_path)
+    steps = scrum_state.load_plan(str(tmp_path))["steps"]
+    assert len(steps) == 1 and steps[0]["title"] == "rewritten"
+
+
+def test_status_footer_lists_blocked_steps(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    _run(["lock", "--id", "1", "--file", "a.py"], tmp_path)
+    _run(["abort"], tmp_path)
+    out = _run(["status"], tmp_path).stdout
+    assert "blocked" in out.lower() and "/up:run" in out
+
+
+# --- the plan ----------------------------------------------------------------
+
+def test_plan_new_add_and_load(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "reject malformed emails"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "validator", "--points", "2",
+          "--file", "v.py", "--acceptance", "c1", "--acceptance", "c2"], tmp_path)
+    _run(["plan-add", "--id", "2", "--title", "wire it", "--points", "1"], tmp_path)
+    plan = scrum_state.load_plan(str(tmp_path))
+    assert plan["task"] == "reject malformed emails"
+    assert [s["id"] for s in plan["steps"]] == ["1", "2"]
+    assert plan["steps"][0]["acceptance"] == ["c1", "c2"]
+    assert plan["steps"][0]["files"] == [os.path.realpath(str(tmp_path / "v.py"))]
+
+
+def test_plan_add_is_idempotent_by_id(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "first"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "rewritten"], tmp_path)
+    plan = scrum_state.load_plan(str(tmp_path))
+    assert len(plan["steps"]) == 1 and plan["steps"][0]["title"] == "rewritten"
+
+
+def test_next_todo_and_step_status_flow(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    _run(["plan-add", "--id", "2", "--title", "b"], tmp_path)
+    assert scrum_state.next_todo_step(str(tmp_path))["id"] == "1"
+    assert scrum_state.has_unfinished_plan(str(tmp_path)) is True
+    _run(["step-status", "--id", "1", "--status", "done"], tmp_path)
+    assert scrum_state.next_todo_step(str(tmp_path))["id"] == "2"
+    _run(["step-status", "--id", "2", "--status", "done"], tmp_path)
+    assert scrum_state.next_todo_step(str(tmp_path)) is None
+    assert scrum_state.has_unfinished_plan(str(tmp_path)) is False
+
+
+def test_aborted_step_does_not_block_plan_completion(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    _run(["step-status", "--id", "1", "--status", "aborted"], tmp_path)
+    assert scrum_state.has_unfinished_plan(str(tmp_path)) is False
+
+
+def test_blocked_step_is_skipped_by_run_loop(tmp_path):
+    # An aborted (-> blocked) step is not auto-retried by /up:run all; the loop advances past it.
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    _run(["plan-add", "--id", "2", "--title", "b"], tmp_path)
+    _run(["lock", "--id", "1", "--file", "a.py"], tmp_path)
+    _run(["abort"], tmp_path)  # step 1 -> blocked, lock released
+    assert scrum_state.next_todo_step(str(tmp_path))["id"] == "2"
+    _run(["step-status", "--id", "2", "--status", "done"], tmp_path)
+    # only a blocked step remains -> nothing drivable -> plan-guard goes inert
+    assert scrum_state.has_unfinished_plan(str(tmp_path)) is False
+
+
+def test_cli_lock_marks_step_current(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    _run(["lock", "--id", "1", "--file", "a.py"], tmp_path)
+    plan = scrum_state.load_plan(str(tmp_path))
+    assert plan["steps"][0]["status"] == "current"
+
+
+def test_cli_plan_next_prints_id(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "7", "--title", "a"], tmp_path)
+    out = _run(["plan-next"], tmp_path)
+    assert out.stdout.strip() == "7"
+
+
+def test_cli_abort_releases_lock_and_marks_blocked(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "a"], tmp_path)
+    _run(["lock", "--id", "1", "--file", "a.py"], tmp_path)
+    _run(["abort"], tmp_path)
+    assert scrum_state.load_current_story(str(tmp_path)) is None
+    assert scrum_state.get_step(str(tmp_path), "1")["status"] == "blocked"
+
+
+def test_render_plan_shows_statuses(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "ship X"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "step one", "--points", "2"], tmp_path)
+    _run(["step-status", "--id", "1", "--status", "done"], tmp_path)
+    rendered = scrum_state.render_plan(str(tmp_path))
+    assert "ship X" in rendered
+    assert "[x] 1. step one" in rendered
+
+
+def test_render_plan_flags_oversized(tmp_path):
+    (tmp_path / ".git").mkdir()
+    _run(["plan-new", "--task", "t"], tmp_path)
+    _run(["plan-add", "--id", "1", "--title", "big", "--points", "5",
+          "--oversized", "split refused: atomic migration"], tmp_path)
+    assert "oversized" in scrum_state.render_plan(str(tmp_path))
+
+
+# --- gitignore, ladder, lean-debt, doctor ------------------------------------
+
+def test_sync_gitignore_ignores_state_dirs_idempotently(tmp_path):
+    scrum_state.sync_gitignore(str(tmp_path))
+    body = (tmp_path / ".gitignore").read_text()
+    for entry in (".scrum/", ".serena/", ".codegraph/"):
+        assert entry in body
+    scrum_state.sync_gitignore(str(tmp_path))
+    assert (tmp_path / ".gitignore").read_text().count(".scrum/") == 1
 
 
 def test_ladder_text_returns_body():
-    body = scrum_state.ladder_text()
-    assert "Does this need to exist" in body
+    assert "Does this need to exist" in scrum_state.ladder_text()
 
 
 def test_ladder_file_exists_and_has_rungs():
@@ -328,22 +395,17 @@ def test_ladder_file_exists_and_has_rungs():
 def test_lean_debt_parses_marker(tmp_path):
     f = tmp_path / "m.py"
     f.write_text("x = 1  # lean: global lock, per-account if hot\n")
-    ledger = scrum_state.scan_lean_debt(str(tmp_path), [str(f)])
-    assert len(ledger) == 1
-    row = ledger[0]
+    row = scrum_state.scan_lean_debt(str(tmp_path), [str(f)])[0]
     assert row["file"] == "m.py" and row["line"] == 1
-    assert row["ceiling"] == "global lock"
-    assert row["upgrade"] == "per-account if hot"
+    assert row["ceiling"] == "global lock" and row["upgrade"] == "per-account if hot"
     assert row["no_trigger"] is False
 
 
 def test_lean_debt_flags_no_trigger(tmp_path):
     f = tmp_path / "m.py"
     f.write_text("# lean: naive O(n^2) scan\nx = 1\n")
-    ledger = scrum_state.scan_lean_debt(str(tmp_path), [str(f)])
-    assert len(ledger) == 1
-    assert ledger[0]["ceiling"] == "naive O(n^2) scan"
-    assert ledger[0]["no_trigger"] is True
+    row = scrum_state.scan_lean_debt(str(tmp_path), [str(f)])[0]
+    assert row["ceiling"] == "naive O(n^2) scan" and row["no_trigger"] is True
 
 
 def test_lean_debt_empty_when_no_markers(tmp_path):
@@ -356,16 +418,22 @@ def test_scan_lean_debt_whole_repo_via_git(tmp_path):
     subprocess.run(["git", "init"], cwd=str(tmp_path), capture_output=True, text=True)
     (tmp_path / "a.py").write_text("# lean: stub, fix when X lands\nx = 1\n")
     subprocess.run(["git", "add", "."], cwd=str(tmp_path), capture_output=True, text=True)
-    ledger = scrum_state.scan_lean_debt(str(tmp_path))
-    assert any(r["file"] == "a.py" for r in ledger)
+    assert any(r["file"] == "a.py" for r in scrum_state.scan_lean_debt(str(tmp_path)))
 
 
 def test_cli_lean_debt(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / "m.py").write_text("# lean: stub, real impl when needed\nx = 1\n")
-    subprocess.run([sys.executable, SCRIPT, "init", "--force"], cwd=str(tmp_path),
-                   capture_output=True, text=True, check=True)
-    out = subprocess.run([sys.executable, SCRIPT, "lean-debt", "--file", "m.py"],
-                         cwd=str(tmp_path), capture_output=True, text=True)
-    assert "m.py" in out.stdout
-    assert "1 marker" in out.stdout
+    _run(["init", "--force"], tmp_path)
+    out = _run(["lean-debt", "--file", "m.py"], tmp_path)
+    assert "m.py" in out.stdout and "1 marker" in out.stdout
+
+
+def test_doctor_probes_mcp_registration_not_path(tmp_path, monkeypatch):
+    (tmp_path / ".git").mkdir()
+    monkeypatch.setattr(scrum_state, "registered_mcp_servers", lambda: {"codegraph"})
+    monkeypatch.setattr(scrum_state, "find_project_root", lambda *a, **k: str(tmp_path))
+    report = scrum_state.check_dependencies(str(tmp_path))
+    by_name = {r["name"]: r for r in report}
+    assert by_name["codegraph"]["present"] is True
+    assert by_name["serena"]["present"] is False

@@ -1,8 +1,8 @@
 {
   "name": "up",
   "displayName": "Ultrapower",
-  "version": "0.4.1",
-  "description": "Scrum + XP workflow: sprints and a backlog for management; TDD, codegraph-grounded stories, a navigator review pass, and an enforced done-gate for quality.",
+  "version": "0.5.0",
+  "description": "Forces a task into small, controllable, hook-enforced increments: plan into \u22643pt steps, drive each test-first with codegraph grounding and a navigator review, pass a verify-gate before any step closes \u2014 all under an always-on lean ladder.",
   "author": {
     "name": "mthanhlm"
   },
@@ -10,9 +10,9 @@
   "repository": "https://github.com/mthanhlm/ultrapower",
   "license": "MIT",
   "keywords": [
-    "scrum",
-    "xp",
     "tdd",
+    "xp",
+    "lean",
     "workflow",
     "code-quality",
     "codegraph"

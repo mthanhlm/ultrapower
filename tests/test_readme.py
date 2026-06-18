@@ -14,63 +14,58 @@ def test_file_exists():
     assert os.path.isfile(README)
 
 
-def test_agents_table_has_debate_row():
+def test_three_verb_surface_documented():
     body = _body()
-    # Must be a real table row starting with | debate |, not a bare substring.
-    assert re.search(r"(?m)^\|\s*`?debate`?\s*\|", body), (
-        "Agents table must contain a 'debate' row"
-    )
+    for cmd in ("/up:init", "/up:plan", "/up:run", "/up:status"):
+        assert cmd in body, f"{cmd} missing from README"
 
 
-def test_loop_documents_debate_review():
+def test_no_dangling_scrum_features():
+    # The Scrum ceremony + tutor + the never-shipped /up:lean must be gone from the docs.
     body = _body()
-    # debate must co-occur with at least one of the gate-vocab words in the file.
-    gate_words = re.compile(r"proceed|revise-plan|pre-lock|plan review", re.IGNORECASE)
-    assert re.search(r"\bdebate\b", body) and gate_words.search(body), (
-        "'debate' and at least one of proceed|revise-plan|pre-lock|plan review must appear in README"
-    )
+    for dead in ("/up:sprint", "/up:story", "/up:done", "/up:tutor", "/up:lean", "lean_mode", "velocity"):
+        assert dead not in body, f"dangling reference to removed feature: {dead}"
 
 
-def test_debate_appears_before_lock_in_loop():
+def test_agents_table_lists_current_three():
     body = _body()
-    # Locate the loop fence — from "The loop" heading to end of its code block.
-    loop_match = re.search(r"## The loop\s*```.*?```", body, re.DOTALL)
-    assert loop_match, "## The loop code-fence not found"
-    loop_text = loop_match.group(0)
-    debate_pos = loop_text.find("debate")
-    lock_pos = re.search(r"\block\b|done\b", loop_text)
-    assert debate_pos != -1, "'debate' not found in the loop fence"
-    assert lock_pos is not None, "lock/done marker not found in loop fence"
-    assert debate_pos < lock_pos.start(), (
-        "'debate' must appear before 'lock'/'done' in the loop fence"
-    )
+    for agent in ("step-planner", "implementer", "navigator"):
+        assert re.search(rf"(?m)^\|\s*`?{re.escape(agent)}`?\s*\|", body), f"agent row '{agent}' missing"
+    # debate / scrum-master / teacher are deleted
+    for gone in ("debate", "scrum-master", "teacher"):
+        assert not re.search(rf"(?m)^\|\s*`?{gone}`?\s*\|", body), f"deleted agent '{gone}' still in table"
 
 
-def test_debate_row_pipe_count_matches_sibling():
+def test_loop_runs_before_close_and_mentions_decomposition():
     body = _body()
-    # Unescaped | (not preceded by \) acts as a column delimiter; literal in-cell
-    # pipes must be escaped as \| so the column count stays consistent.
-    def unescaped_pipe_count(row: str) -> int:
-        return len(re.findall(r"(?<!\\)\|", row))
-
-    debate_row = re.search(r"(?m)^\|[^\n]*`debate`[^\n]*\|$", body)
-    navigator_row = re.search(r"(?m)^\|[^\n]*`navigator`[^\n]*\|$", body)
-    assert debate_row, "debate row not found in Agents table"
-    assert navigator_row, "navigator row not found in Agents table"
-    assert unescaped_pipe_count(debate_row.group(0)) == unescaped_pipe_count(navigator_row.group(0)), (
-        "debate row has a different number of unescaped '|' delimiters than the navigator row — "
-        "escape any literal in-cell pipes as \\|"
-    )
+    loop = re.search(r"## The loop\s*```.*?```", body, re.DOTALL)
+    assert loop, "## The loop code-fence not found"
+    text = loop.group(0)
+    assert text.find("/up:plan") < text.find("/up:run"), "plan must precede run in the loop"
+    assert "lock" in text and "navigator" in text
 
 
 def test_loop_mentions_lean_ladder():
+    loop = re.search(r"## The loop\s*```.*?```", _body(), re.DOTALL)
+    assert loop, "## The loop code-fence not found"
+    low = loop.group(0).lower()
+    assert "lean" in low and "ladder" in low
+
+
+def test_plan_guard_is_documented_as_the_forcing_function():
+    body = _body().lower()
+    assert "plan-guard" in body
+    assert "hook fact" in body or "not around it" in body
+
+
+def test_command_rows_pipe_count_consistent():
+    # Literal in-cell pipes must be escaped as \| so the markdown table stays well-formed.
     body = _body()
-    loop_match = re.search(r"## The loop\s*```.*?```", body, re.DOTALL)
-    assert loop_match, "## The loop code-fence not found"
-    loop = loop_match.group(0).lower()
-    assert "lean" in loop and "ladder" in loop, "the loop must mention the lean ladder"
 
+    def unescaped_pipes(row):
+        return len(re.findall(r"(?<!\\)\|", row))
 
-def test_debate_described_as_six_lenses():
-    # S5/S6 made debate + navigator six lenses; the README wording must match.
-    assert "five lenses" not in _body(), "debate is now six lenses — reconcile the README wording"
+    rows = re.findall(r"(?m)^\|\s*`/up:[^\n]*\|$", body)
+    assert len(rows) >= 4, "expected the four command rows"
+    counts = {unescaped_pipes(r) for r in rows}
+    assert len(counts) == 1, f"command rows have inconsistent delimiter counts: {counts}"

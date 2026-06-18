@@ -11,77 +11,49 @@ WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
 
 def _parse(path):
     assert os.path.isfile(path), f"agent file not found: {path}"
-    text = open(path).read()
-    parts = text.split("---", 2)
-    fm = yaml.safe_load(parts[1])
-    body = parts[2]
-    return fm, body
+    parts = open(path).read().split("---", 2)
+    return yaml.safe_load(parts[1]), parts[2]
 
 
 def test_file_exists():
-    assert os.path.isfile(AGENT), f"agents/navigator.md not found at {AGENT}"
+    assert os.path.isfile(AGENT)
 
 
-def test_frontmatter_name():
+def test_frontmatter_name_and_model():
     fm, _ = _parse(AGENT)
     assert fm["name"] == "navigator"
-
-
-def test_frontmatter_description_nonempty():
-    fm, _ = _parse(AGENT)
-    assert isinstance(fm.get("description"), str) and fm["description"].strip()
-
-
-def test_frontmatter_description_lens_count():
-    fm, _ = _parse(AGENT)
-    desc = fm["description"].lower()
-    assert "six" in desc and "five" not in desc, "description lens count must match the six-lens body"
-
-
-def test_frontmatter_model_opus():
-    fm, _ = _parse(AGENT)
     assert fm["model"] == "opus"
 
 
-def test_frontmatter_tools_no_write_tools():
+def test_frontmatter_read_only():
     fm, _ = _parse(AGENT)
-    tools_raw = fm["tools"]
-    tools = [t.strip() for t in tools_raw.split(",")]
+    tools = [t.strip() for t in fm["tools"].split(",")]
     for forbidden in WRITE_TOOLS:
-        assert forbidden not in tools, f"tools must not include {forbidden}"
+        assert forbidden not in tools
 
 
-def test_body_all_six_lenses():
+def test_bug_lenses_always_run():
     _, body = _parse(AGENT)
-    # Each lens must appear as a distinct heading to avoid substring false matches.
-    # "flow" alone must not match only inside "data-flow"; require a heading boundary.
-    patterns = {
-        "natural":       r"(?m)^#+\s+Natural\b|^\*\*Natural\b",
-        "logical":       r"(?m)^#+\s+Logical\b|^\*\*Logical\b",
-        "user-friendly": r"(?m)^#+\s+User-friendly\b|^\*\*User-friendly\b",
-        "data-flow":     r"(?m)^#+\s+Data-flow\b|^\*\*Data-flow\b",
-        "flow":          r"(?m)^#+\s+Flow\b|^\*\*Flow\b",
-        "lean":          r"(?m)^#+\s+Lean\b|^\*\*Lean\b",
-    }
-    for lens, pat in patterns.items():
-        assert re.search(pat, body, re.IGNORECASE), f"lens '{lens}' heading not found in body"
+    # Logical + Flow are the always-on bug-catching floor.
+    assert re.search(r"(?im)^#+\s+Logical\b.*always|Logical\b.*\(always\)", body) or "Logical (always)" in body
+    assert "Flow (always)" in body
 
 
-def test_body_lean_lens_tags_and_net():
+def test_polish_lenses_scale_with_size():
     _, body = _parse(AGENT)
     low = body.lower()
-    for tag in ("delete", "stdlib", "native", "yagni", "shrink"):
-        assert tag in low, f"lean-lens tag '{tag}' missing from body"
-    assert "net:" in low, "lean lens must close with a net: -N lines metric"
+    # depth scales but the floor never gates to zero
+    assert "> 2 point" in body or ">2pt" in low or "> 2pt" in body
+    assert "natural" in low and "user-friendly" in low and "data-flow" in low
 
 
-def test_body_severity_vocab():
+def test_single_reviewer_no_debate_dependency():
+    _, body = _parse(AGENT)
+    assert "the one review" in body.lower() or "single review" in body.lower()
+
+
+def test_severity_and_output_block():
     _, body = _parse(AGENT)
     for word in ("blocker", "should", "nit"):
-        assert word in body, f"severity word '{word}' missing from body"
-
-
-def test_body_output_block():
-    _, body = _parse(AGENT)
-    assert "VERDICT" in body
-    assert "FINDINGS" in body
+        assert word in body
+    assert "VERDICT" in body and "FINDINGS" in body

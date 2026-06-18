@@ -2,7 +2,9 @@
 
 A Claude Code plugin that fuses **Scrum** (lightweight management) with **Extreme Programming**
 (quality engineering) into one enforced workflow: plan a sprint, drive each story test-first with
-codegraph grounding, get a navigator review, and pass a verify-gate before anything closes.
+codegraph grounding, get a navigator review, and pass a verify-gate before anything closes — all
+under an always-on **lean ladder** (YAGNI → stdlib → native → one line) that keeps every change
+minimal.
 
 Commands are namespaced `/up:` (the plugin is named `up`).
 
@@ -10,6 +12,7 @@ Commands are namespaced `/up:` (the plugin is named `up`).
 
 ```
 /up:init               once per project — detect verify commands + Definition of Done
+/up:lean [level]       dial the always-on lean ladder (lite|full|ultra|off; default full)
 /up:sprint plan        guided question-bundle → crisp sprint goal + estimated backlog
 /up:story start <id>   brief + codegraph impact/reuse → you approve → debate pre-lock plan review → file contract locked
   (implement)          TDD: failing test → mark-red → minimal code → refactor
@@ -43,7 +46,7 @@ then proposes a **sprint goal** and a short **backlog** with point estimates —
 ```
 The **story-planner** reads the codebase via codegraph and hands you a brief: which files it'll
 touch, the approach, which existing helpers it reuses, the tests, and a verify command. You
-approve → the **debate** agent runs a pre-lock plan review (five lenses, `VERDICT: proceed |
+approve → the **debate** agent runs a pre-lock plan review (six lenses, `VERDICT: proceed |
 revise-plan`) → that file list is **locked** (edits outside it get blocked).
 
 **3. Build it test-first**
@@ -80,6 +83,7 @@ anytime with `/up:tutor`. No hand-editing of `.scrum/` state.
 | Command | What it does |
 |---|---|
 | `/up:init` | Detect & confirm this project's `test`/`lint`/`typecheck`/`smoke` commands and Definition of Done → `.scrum/config.json`. |
+| `/up:lean [lite\|full\|ultra\|off]` | Dial the always-on lean ladder's intensity (default `full`); persists as `lean_mode`. |
 | `/up:sprint plan` \| `close` | Plan a sprint via a guided question-bundle; close records velocity and seeds the retro. |
 | `/up:story start <id\|desc>` \| `add` | Plan + lock a story (brief, estimate, contract); or quick-add one to the backlog. |
 | `/up:done` | Navigator review + done-gate, then close the active story. |
@@ -92,7 +96,7 @@ anytime with `/up:tutor`. No hand-editing of `.scrum/` state.
 | Agent | Role | Model |
 |---|---|---|
 | `story-planner` | Read-only; codegraph-grounded brief + point estimate. | opus |
-| `debate` | Read-only pre-lock plan critic — five lenses; `VERDICT: proceed \| revise-plan`. | opus |
+| `debate` | Read-only pre-lock plan critic — six lenses; `VERDICT: proceed \| revise-plan`. | opus |
 | `implementer` | Red → green → refactor inside the locked contract. | sonnet |
 | `navigator` | Read-only review; severity-tagged findings. | opus |
 | `scrum-master` | Sprint planning + close facilitation; velocity. | opus |
@@ -102,12 +106,16 @@ anytime with `/up:tutor`. No hand-editing of `.scrum/` state.
 
 - **scope-guard** — blocks edits to files outside the locked story contract.
 - **tdd-guard** — blocks source edits until a failing test has been observed (`mark-red`).
-- **comment-noise** — rejects narration comments; keeps only why-notes, TODO/FIXME, lint directives.
+- **comment-noise** — rejects narration comments; keeps only why-notes, TODO/FIXME, `lean:` markers, lint directives.
 - **done-gate** — `/up:done` runs the configured verify set; a story cannot close on a red gate or
   with open blocker findings.
+- **lean-inject / lean-mode** — inject the lean ladder (`lean/ladder.md`) at your `lean_mode` every
+  session and track `/up:lean` switches. The lean layer is adapted from
+  [ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 
-No active story ⇒ all guards are inert, so ad-hoc work and projects that don't use ultrapower are
-unaffected.
+No active story ⇒ the scope/TDD/comment guards are inert, so ad-hoc work and projects that don't use
+ultrapower are unaffected. The lean ladder is the exception — it's injected per project (wherever
+`.scrum/` exists) at your `lean_mode`, story or not; `/up:lean off` silences it.
 
 ## Install
 
@@ -135,9 +143,9 @@ claude plugin install up@ultrapower
 
 ## State (`.scrum/`)
 
-Ultrapower keeps per-project state as files under `.scrum/` — `config.json`, `sprint.md`,
-`backlog.md`, `velocity.md`, `retro.md`, `tutored.md`, and the active `current-story.json`. Commit policy
-follows your `/up:init` choice (`scrum_visibility`) — `local` → gitignored, `shared` → committed.
+Ultrapower keeps per-project state as files under `.scrum/` — `config.json` (incl. your `lean_mode`),
+`sprint.md`, `backlog.md`, `velocity.md`, `retro.md`, `tutored.md`, and the active `current-story.json`.
+Commit policy follows your `/up:init` choice (`scrum_visibility`) — `local` → gitignored, `shared` → committed.
 On `/up:sprint close`, `velocity.md` is auto-recorded and a **DRAFT** `retro.md` section is seeded
 for you to edit — derived state is maintained for you, not by hand.
 It is found by walking up from the working directory, so the hooks work from any subdirectory.

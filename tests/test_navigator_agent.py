@@ -32,6 +32,12 @@ def test_frontmatter_description_nonempty():
     assert isinstance(fm.get("description"), str) and fm["description"].strip()
 
 
+def test_frontmatter_description_lens_count():
+    fm, _ = _parse(AGENT)
+    desc = fm["description"].lower()
+    assert "six" in desc and "five" not in desc, "description lens count must match the six-lens body"
+
+
 def test_frontmatter_model_opus():
     fm, _ = _parse(AGENT)
     assert fm["model"] == "opus"
@@ -45,7 +51,7 @@ def test_frontmatter_tools_no_write_tools():
         assert forbidden not in tools, f"tools must not include {forbidden}"
 
 
-def test_body_all_five_lenses():
+def test_body_all_six_lenses():
     _, body = _parse(AGENT)
     # Each lens must appear as a distinct heading to avoid substring false matches.
     # "flow" alone must not match only inside "data-flow"; require a heading boundary.
@@ -55,9 +61,18 @@ def test_body_all_five_lenses():
         "user-friendly": r"(?m)^#+\s+User-friendly\b|^\*\*User-friendly\b",
         "data-flow":     r"(?m)^#+\s+Data-flow\b|^\*\*Data-flow\b",
         "flow":          r"(?m)^#+\s+Flow\b|^\*\*Flow\b",
+        "lean":          r"(?m)^#+\s+Lean\b|^\*\*Lean\b",
     }
     for lens, pat in patterns.items():
         assert re.search(pat, body, re.IGNORECASE), f"lens '{lens}' heading not found in body"
+
+
+def test_body_lean_lens_tags_and_net():
+    _, body = _parse(AGENT)
+    low = body.lower()
+    for tag in ("delete", "stdlib", "native", "yagni", "shrink"):
+        assert tag in low, f"lean-lens tag '{tag}' missing from body"
+    assert "net:" in low, "lean lens must close with a net: -N lines metric"
 
 
 def test_body_severity_vocab():

@@ -311,3 +311,85 @@ def test_cli_tutor_pending(tmp_path):
     out2 = subprocess.run(base + ["tutor-pending", "--list"], cwd=str(tmp_path),
                           capture_output=True, text=True)
     assert "S6" not in out2.stdout
+
+
+def test_lean_mode_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("UP_LEAN_MODE", raising=False)
+    assert scrum_state.DEFAULT_CONFIG["lean_mode"] == "full"
+    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "full"
+
+
+def test_lean_mode_resolution_precedence(tmp_path, monkeypatch):
+    cfg = scrum_state.load_config(str(tmp_path))
+    cfg["lean_mode"] = "lite"
+    scrum_state.save_config(str(tmp_path), cfg)
+    monkeypatch.delenv("UP_LEAN_MODE", raising=False)
+    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "lite"
+    monkeypatch.setenv("UP_LEAN_MODE", "ultra")
+    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "ultra"
+    monkeypatch.setenv("UP_LEAN_MODE", "bogus")
+    assert scrum_state.resolve_lean_mode(str(tmp_path)) == "lite"
+
+
+def test_lean_mode_off_yields_empty_ladder():
+    assert scrum_state.ladder_text("off") == ""
+
+
+def test_ladder_text_filters_to_active_mode():
+    full = scrum_state.ladder_text("full")
+    assert "Does this need to exist" in full
+    assert "**full**" in full
+    assert "**lite**" not in full and "**ultra**" not in full
+
+
+def test_ladder_file_exists_and_has_rungs():
+    assert os.path.isfile(scrum_state._LADDER_PATH)
+    body = open(scrum_state._LADDER_PATH).read()
+    for rung in ("Stdlib does it", "one line", "minimum code that works"):
+        assert rung in body
+
+
+def test_lean_debt_parses_marker(tmp_path):
+    f = tmp_path / "m.py"
+    f.write_text("x = 1  # lean: global lock, per-account if hot\n")
+    ledger = scrum_state.scan_lean_debt(str(tmp_path), [str(f)])
+    assert len(ledger) == 1
+    row = ledger[0]
+    assert row["file"] == "m.py" and row["line"] == 1
+    assert row["ceiling"] == "global lock"
+    assert row["upgrade"] == "per-account if hot"
+    assert row["no_trigger"] is False
+
+
+def test_lean_debt_flags_no_trigger(tmp_path):
+    f = tmp_path / "m.py"
+    f.write_text("# lean: naive O(n^2) scan\nx = 1\n")
+    ledger = scrum_state.scan_lean_debt(str(tmp_path), [str(f)])
+    assert len(ledger) == 1
+    assert ledger[0]["ceiling"] == "naive O(n^2) scan"
+    assert ledger[0]["no_trigger"] is True
+
+
+def test_lean_debt_empty_when_no_markers(tmp_path):
+    f = tmp_path / "m.py"
+    f.write_text("x = 1\n# just a normal comment\n")
+    assert scrum_state.scan_lean_debt(str(tmp_path), [str(f)]) == []
+
+
+def test_scan_lean_debt_whole_repo_via_git(tmp_path):
+    subprocess.run(["git", "init"], cwd=str(tmp_path), capture_output=True, text=True)
+    (tmp_path / "a.py").write_text("# lean: stub, fix when X lands\nx = 1\n")
+    subprocess.run(["git", "add", "."], cwd=str(tmp_path), capture_output=True, text=True)
+    ledger = scrum_state.scan_lean_debt(str(tmp_path))
+    assert any(r["file"] == "a.py" for r in ledger)
+
+
+def test_cli_lean_debt(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "m.py").write_text("# lean: stub, real impl when needed\nx = 1\n")
+    subprocess.run([sys.executable, SCRIPT, "init", "--force"], cwd=str(tmp_path),
+                   capture_output=True, text=True, check=True)
+    out = subprocess.run([sys.executable, SCRIPT, "lean-debt", "--file", "m.py"],
+                         cwd=str(tmp_path), capture_output=True, text=True)
+    assert "m.py" in out.stdout
+    assert "1 marker" in out.stdout

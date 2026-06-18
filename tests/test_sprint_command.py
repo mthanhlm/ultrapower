@@ -45,3 +45,13 @@ def test_scrum_master_spec_drops_capacity_verdict():
     assert "CAPACITY:" not in sm
     assert "over- or under-committed" not in sm
     assert "informational" in sm.lower()
+
+
+def test_close_harvests_lean_debt():
+    # closing a sprint surfaces the lean: shortcuts it accumulated
+    assert "lean-debt" in _section("close")
+
+
+def test_done_command_surfaces_lean_debt():
+    done = open(os.path.join(ROOT, "commands", "done.md")).read()
+    assert "lean-debt" in done

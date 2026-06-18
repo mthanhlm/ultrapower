@@ -93,6 +93,21 @@ def test_comment_noise_allows_why_note(tmp_path):
     assert out.returncode == 0
 
 
+def test_comment_noise_keeps_lean_marker(tmp_path):
+    data = {"tool_input": {"file_path": str(tmp_path / "a.py"),
+                           "new_string": "# lean: global lock, per-account locks if throughput matters\nx = 1\n"}}
+    out = _run_hook("comment-noise.py", data)
+    assert out.returncode == 0
+
+
+def test_comment_noise_lean_exemption_beats_narration(tmp_path):
+    # Without the lean: exemption this line trips the "update the ..." narration rule.
+    data = {"tool_input": {"file_path": str(tmp_path / "a.py"),
+                           "new_string": "# update the cache lean: global lock, shard if hot\nx = 1\n"}}
+    out = _run_hook("comment-noise.py", data)
+    assert out.returncode == 0
+
+
 def _done_gate(project):
     return subprocess.run([sys.executable, os.path.join(HOOKS, "done-gate.py"), str(project)],
                           capture_output=True, text=True)
@@ -120,3 +135,78 @@ def test_done_gate_needs_active_story(tmp_path):
     (tmp_path / ".git").mkdir()
     out = _done_gate(tmp_path)
     assert out.returncode == 1
+
+
+def _init_lean(project, mode="full"):
+    (project / ".git").mkdir(exist_ok=True)
+    subprocess.run([sys.executable, STATE, "init", "--force"], cwd=str(project),
+                   capture_output=True, text=True, check=True)
+    cfg_path = project / ".scrum" / "config.json"
+    cfg = json.loads(cfg_path.read_text())
+    cfg["lean_mode"] = mode
+    cfg_path.write_text(json.dumps(cfg))
+    return project
+
+
+def test_lean_inject_emits_ladder_at_full(tmp_path):
+    _init_lean(tmp_path, "full")
+    out = _run_hook("lean-inject.py", {"cwd": str(tmp_path)})
+    assert "Does this need to exist" in out.stdout
+    assert "**full**" in out.stdout and "**ultra**" not in out.stdout
+
+
+def test_lean_inject_silent_when_off(tmp_path):
+    _init_lean(tmp_path, "off")
+    out = _run_hook("lean-inject.py", {"cwd": str(tmp_path)})
+    assert out.stdout.strip() == ""
+
+
+def test_lean_inject_silent_without_scrum(tmp_path):
+    (tmp_path / ".git").mkdir()
+    out = _run_hook("lean-inject.py", {"cwd": str(tmp_path)})
+    assert out.stdout.strip() == ""
+
+
+def test_lean_mode_switch_persists(tmp_path):
+    _init_lean(tmp_path, "full")
+    out = _run_hook("lean-mode.py", {"cwd": str(tmp_path), "prompt": "/up:lean ultra"})
+    cfg = json.loads((tmp_path / ".scrum" / "config.json").read_text())
+    assert cfg["lean_mode"] == "ultra"
+    assert "ultra" in out.stdout.lower()
+
+
+def test_lean_mode_off_via_stop_lean(tmp_path):
+    _init_lean(tmp_path, "full")
+    _run_hook("lean-mode.py", {"cwd": str(tmp_path), "prompt": "stop lean"})
+    cfg = json.loads((tmp_path / ".scrum" / "config.json").read_text())
+    assert cfg["lean_mode"] == "off"
+
+
+def test_lean_mode_ignores_unrelated_prompt(tmp_path):
+    _init_lean(tmp_path, "full")
+    out = _run_hook("lean-mode.py", {"cwd": str(tmp_path), "prompt": "please refactor the parser"})
+    assert out.stdout.strip() == ""
+    cfg = json.loads((tmp_path / ".scrum" / "config.json").read_text())
+    assert cfg["lean_mode"] == "full"
+
+
+def test_lean_mode_inert_without_scrum(tmp_path):
+    (tmp_path / ".git").mkdir()
+    out = _run_hook("lean-mode.py", {"cwd": str(tmp_path), "prompt": "/up:lean ultra"})
+    assert out.stdout.strip() == ""
+    assert not (tmp_path / ".scrum").exists()
+
+
+def test_lean_mode_ignores_normal_mode_in_prose(tmp_path):
+    _init_lean(tmp_path, "full")
+    _run_hook("lean-mode.py",
+              {"cwd": str(tmp_path), "prompt": "switch the editor back to normal mode please"})
+    cfg = json.loads((tmp_path / ".scrum" / "config.json").read_text())
+    assert cfg["lean_mode"] == "full"
+
+
+def test_lean_hooks_fail_open_on_bad_stdin():
+    for name in ("lean-inject.py", "lean-mode.py"):
+        out = subprocess.run([sys.executable, os.path.join(HOOKS, name)],
+                             input="not json", capture_output=True, text=True)
+        assert out.returncode == 0, name

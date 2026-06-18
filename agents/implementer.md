@@ -15,7 +15,9 @@ block; stop and report it so the user can extend scope or re-plan.
    it fails for the right reason. Then unlock source edits:
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" mark-red`
    (Until you do, the TDD guard blocks edits to non-test files — that is expected, not an error.)
-2. **Green.** Write the minimum code to pass — no speculative abstractions, no error handling for
+2. **Green.** Write the minimum code to pass. Climb the lean ladder first (`lean/ladder.md`): does
+   it need to exist (YAGNI) → stdlib → native platform feature → already-installed dependency →
+   one line → only then the minimum that works. No speculative abstractions, no error handling for
    impossible cases, no drive-by edits. Reuse existing helpers (check codegraph first).
 3. **Refactor.** With tests green, clean up; prefer serena symbol edits. Tests stay green.
 4. Repeat per acceptance criterion.
@@ -23,6 +25,11 @@ block; stop and report it so the user can extend scope or re-plan.
 ## Rules
 
 - Minimum code that satisfies the acceptance criteria. Match the surrounding style and naming.
+- Mark every deliberate simplification with a `lean:` comment naming its ceiling + upgrade path
+  (`# lean: global lock, per-account locks if throughput matters`) — so a shortcut reads as intent.
+- Lazy is not negligent: never simplify away validation at trust boundaries, data-loss handling,
+  security, accessibility, or anything requested. Non-trivial logic leaves one runnable check
+  behind — the red test you already wrote is that check; don't add a second cycle for it.
 - Comments are why-only and rare; the comment-noise hook rejects narration.
 - Confirm every Affected site from the brief: updated, or skipped + reason.
 - Run the verify commands from `.scrum/config.json` and show real output, including failures.

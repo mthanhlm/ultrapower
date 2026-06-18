@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AGENT = os.path.join(ROOT, "agents", "debate.md")
 
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
-LENSES = ["natural", "logical", "user-friendly", "data-flow", "flow"]
+LENSES = ["natural", "logical", "user-friendly", "data-flow", "flow", "lean"]
 
 
 def _parse(path):
@@ -34,6 +34,12 @@ def test_frontmatter_description_nonempty():
     assert isinstance(fm.get("description"), str) and fm["description"].strip()
 
 
+def test_frontmatter_description_lens_count():
+    fm, _ = _parse(AGENT)
+    desc = fm["description"].lower()
+    assert "six" in desc and "five" not in desc, "description lens count must match the six-lens body"
+
+
 def test_frontmatter_model_opus():
     fm, _ = _parse(AGENT)
     assert fm["model"] == "opus"
@@ -53,7 +59,7 @@ def test_frontmatter_tools_no_bash():
     assert "Bash" not in tools, "debate reviews a plan only — Bash must not be in tools"
 
 
-def test_body_all_five_lenses():
+def test_body_all_six_lenses():
     _, body = _parse(AGENT)
     # Each lens must appear as a distinct heading/label (## or **) to avoid substring false matches.
     # "flow" alone must not match only inside "data-flow"; require a heading boundary.
@@ -63,9 +69,17 @@ def test_body_all_five_lenses():
         "user-friendly": r"(?m)^#+\s+User-friendly\b|^\*\*User-friendly\b",
         "data-flow":     r"(?m)^#+\s+Data-flow\b|^\*\*Data-flow\b",
         "flow":          r"(?m)^#+\s+Flow\b|^\*\*Flow\b",
+        "lean":          r"(?m)^#+\s+Lean\b|^\*\*Lean\b",
     }
     for lens, pat in patterns.items():
         assert re.search(pat, body, re.IGNORECASE), f"lens '{lens}' heading not found in body"
+
+
+def test_body_lean_lens_vocab():
+    _, body = _parse(AGENT)
+    low = body.lower()
+    for word in ("delete", "stdlib", "native", "yagni", "shrink"):
+        assert word in low, f"lean-lens vocabulary '{word}' missing from body"
 
 
 def test_body_severity_vocab():

@@ -19,7 +19,7 @@ CODE_EXTS = {
 }
 
 ALLOWED = re.compile(
-    r"(TODO|FIXME|HACK|NOTE|SAFETY|PERF|WHY)\b|noqa|type:\s*ignore|eslint-|ts-ignore|"
+    r"(TODO|FIXME|HACK|NOTE|SAFETY|PERF|WHY)\b|\blean:|noqa|type:\s*ignore|eslint-|ts-ignore|"
     r"ts-expect-error|prettier-|pylint|pragma|coding[:=]|^!",
     re.I,
 )

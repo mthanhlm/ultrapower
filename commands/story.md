@@ -23,7 +23,7 @@ Drive one backlog story. Requires `.scrum/config.json` (`/up:init`). Sub-command
 
 4. **Debate plan review.** Invoke the `debate` agent with the BRIEF from step 2 and the proposed
    file contract. It returns `VERDICT: proceed | revise-plan` and `FINDINGS:` severity-tagged across
-   five lenses. If the verdict is `revise-plan` or any `blocker` findings are open, show the
+   six lenses. If the verdict is `revise-plan` or any `blocker` findings are open, show the
    findings to the user, revise the brief or scope together, then re-invoke the `debate` agent until
    the verdict is `proceed`. Only once `proceed` is returned advance to step 5.
 

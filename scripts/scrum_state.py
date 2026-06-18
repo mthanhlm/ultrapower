@@ -17,6 +17,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,7 @@ SCRUM_DIRNAME = ".scrum"
 
 DEFAULT_CONFIG = {
     "scrum_visibility": "local",
+    "lean_mode": "full",
     "verify": {"test": "", "lint": "", "typecheck": "", "smoke": ""},
     "definition_of_done": [
         "tests pass",
@@ -106,6 +108,86 @@ def set_visibility(root, mode):
     cfg = load_config(root)
     cfg["scrum_visibility"] = mode
     save_config(root, cfg)
+
+
+LEAN_MODES = ("off", "lite", "full", "ultra")
+DEFAULT_LEAN_MODE = "full"
+_LADDER_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lean", "ladder.md")
+
+
+def _normalize_lean_mode(value):
+    if isinstance(value, str) and value.strip().lower() in LEAN_MODES:
+        return value.strip().lower()
+    return None
+
+
+def resolve_lean_mode(root):
+    """Active lean intensity: UP_LEAN_MODE env > config `lean_mode` > `full`. Invalid values ignored."""
+    return (_normalize_lean_mode(os.environ.get("UP_LEAN_MODE"))
+            or _normalize_lean_mode(load_config(root).get("lean_mode"))
+            or DEFAULT_LEAN_MODE)
+
+
+def _filter_ladder_for_mode(body, mode):
+    # lean: keyed off **mode** tokens in the one Intensity table; a second mode-named table would need anchoring
+    others = tuple(f"**{m}**" for m in LEAN_MODES if m != mode)
+    return "\n".join(
+        line for line in body.splitlines()
+        if not (line.lstrip().startswith("|") and any(tok in line for tok in others))
+    )
+
+
+def ladder_text(mode=DEFAULT_LEAN_MODE, path=_LADDER_PATH):
+    """The lean ladder filtered to `mode`. Empty when mode is `off` or the file is unreadable."""
+    mode = _normalize_lean_mode(mode) or DEFAULT_LEAN_MODE
+    if mode == "off":
+        return ""
+    try:
+        with open(path) as f:
+            body = f.read()
+    except (OSError, ValueError):
+        return ""
+    return _filter_ladder_for_mode(body, mode)
+
+
+# lean: line grep, not a per-language parser — can match lean: inside string literals; parse per-language if the noise bites
+_LEAN_DEBT = re.compile(r"(?:#|//|/\*+|--|;)\s*lean:\s*(.+?)\s*(?:\*/)?\s*$", re.I)
+
+
+def _repo_files(root):
+    try:
+        out = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+                             cwd=root, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [os.path.join(root, p) for p in out.stdout.splitlines() if p] if out.returncode == 0 else []
+
+
+def scan_lean_debt(root, files=None):
+    """Harvest `lean:` markers into a ledger. `files=None` scans the whole repo (git-tracked
+    files); otherwise scans the given paths. Convention is `lean: <ceiling>, <upgrade path>` —
+    a marker naming no upgrade path (no comma) is flagged `no_trigger`, the rot risk."""
+    paths = files if files is not None else _repo_files(root)
+    ledger = []
+    for path in paths:
+        try:
+            with open(path, encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+        except (OSError, ValueError):
+            continue
+        for n, line in enumerate(lines, 1):
+            m = _LEAN_DEBT.search(line)
+            if not m:
+                continue
+            ceiling, _, upgrade = m.group(1).strip().partition(",")
+            ledger.append({
+                "file": os.path.relpath(path, root),
+                "line": n,
+                "ceiling": ceiling.strip(),
+                "upgrade": upgrade.strip(),
+                "no_trigger": not upgrade.strip(),
+            })
+    return ledger
 
 
 def sync_gitignore(root):
@@ -453,6 +535,8 @@ def _cli(argv=None):
     p_pend.add_argument("--title", default="")
     p_pend.add_argument("--remove")
     p_pend.add_argument("--list", action="store_true")
+    p_debt = sub.add_parser("lean-debt")
+    p_debt.add_argument("--file", action="append", default=None, dest="files")
     sub.add_parser("mark-red")
     sub.add_parser("close")
     sub.add_parser("show")
@@ -507,6 +591,21 @@ def _cli(argv=None):
         else:
             ids = list_pending(root)
             print("\n".join(ids) if ids else "(none pending)")
+        return 0
+    if args.cmd == "lean-debt":
+        files = None
+        if args.files:
+            files = [os.path.realpath(f if os.path.isabs(f) else os.path.join(root, f)) for f in args.files]
+        ledger = scan_lean_debt(root, files)
+        if not ledger:
+            print("No lean: debt. Clean ledger.")
+            return 0
+        for row in ledger:
+            upgrade = f" — upgrade: {row['upgrade']}" if row["upgrade"] else ""
+            rot = "  [no-trigger]" if row["no_trigger"] else ""
+            print(f"  {row['file']}:{row['line']} — {row['ceiling']}{upgrade}{rot}")
+        no_trig = sum(1 for r in ledger if r["no_trigger"])
+        print(f"{len(ledger)} marker(s), {no_trig} with no trigger.")
         return 0
     if args.cmd == "mark-red":
         story = load_current_story(root)

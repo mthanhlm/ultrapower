@@ -53,4 +53,7 @@ user the way a good planning session would, not by guessing.
 3. Reset `.scrum/sprint.md` to the no-active-sprint scaffold, moving unfinished stories back
    into `.scrum/backlog.md` — **renumber carried-back stories `S`→`B`** (each takes the next free
    backlog id), the inverse of the `B`→`S` pull-in.
-4. Summarise the outcome and suggest `/up:retro` to capture lessons before the next `plan`.
+4. **Harvest the lean debt.** Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" lean-debt`
+   (whole repo) and include the deferred-marker count, and any `[no-trigger]` rot, in the summary —
+   so the shortcuts this sprint accumulated are visible before the next `plan`.
+5. Summarise the outcome and suggest `/up:retro` to capture lessons before the next `plan`.

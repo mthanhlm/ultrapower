@@ -9,7 +9,7 @@
       "name": "up",
       "source": "./",
       "description": "Scrum + XP workflow: sprint/backlog management with TDD, codegraph grounding, a navigator review, and an enforced done-gate.",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "category": "workflow",
       "keywords": [
         "scrum",

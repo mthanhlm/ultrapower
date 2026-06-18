@@ -25,6 +25,9 @@ Close the active story in `.scrum/current-story.json`. If there is none, tell th
    - `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" tutor-pending --add <id> --title '<title>'`
      queues the story for tutoring, so going fast now never loses the chance to understand it later;
    - `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" close` releases the lock.
+   - `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" lean-debt --file <each story file>`
+     lists any `lean:` shortcuts deferred in the changed files; surface them — especially
+     `[no-trigger]` rot — in your report so a deferral stays visible. Informational; never blocks.
    Then report what shipped and remind the user they can run `/up:tutor` anytime to work the pending
    queue (or `/up:tutor <id>` right now to understand it immediately). Suggest the next
    `/up:story start`, or `/up:sprint close` if the sprint is complete.

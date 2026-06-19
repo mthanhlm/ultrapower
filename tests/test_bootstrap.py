@@ -24,14 +24,13 @@ def _make_proc(returncode, stdout="", stderr=""):
 def test_bootstrap_success_returns_ok_true(tmp_path, monkeypatch):
     # Success is the post-condition that the repo-local dirs exist.
     (tmp_path / ".codegraph").mkdir()
-    (tmp_path / ".serena").mkdir()
 
     def fake_run(cmd, **kwargs):
         return _make_proc(0, stdout="indexed ok")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     results = scrum_state.bootstrap_tools(str(tmp_path))
-    assert len(results) == 2
+    assert len(results) == 1
     for rec in results:
         assert rec["ok"] is True
         assert rec["present"] is True
@@ -44,7 +43,7 @@ def test_bootstrap_dir_absent_returns_ok_false_even_on_zero_exit(tmp_path, monke
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     results = scrum_state.bootstrap_tools(str(tmp_path))
-    assert len(results) == 2
+    assert len(results) == 1
     for rec in results:
         assert rec["ok"] is False
         assert rec["present"] is False
@@ -52,9 +51,8 @@ def test_bootstrap_dir_absent_returns_ok_false_even_on_zero_exit(tmp_path, monke
 
 
 def test_bootstrap_dir_present_ok_true_even_on_nonzero_exit(tmp_path, monkeypatch):
-    # serena already-registered: non-zero exit but .serena/ exists -> ok.
+    # already-indexed: non-zero exit but .codegraph/ exists -> ok.
     (tmp_path / ".codegraph").mkdir()
-    (tmp_path / ".serena").mkdir()
 
     def fake_run(cmd, **kwargs):
         return _make_proc(1, stderr="already registered")
@@ -72,7 +70,7 @@ def test_bootstrap_nonzero_returns_ok_false_no_raise(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     # must NOT raise; no dirs created -> ok False
     results = scrum_state.bootstrap_tools(str(tmp_path))
-    assert len(results) == 2
+    assert len(results) == 1
     for rec in results:
         assert rec["ok"] is False
         assert "error detail" in rec["output"]
@@ -84,7 +82,7 @@ def test_bootstrap_oserror_returns_ok_false_no_raise(tmp_path, monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     results = scrum_state.bootstrap_tools(str(tmp_path))
-    assert len(results) == 2
+    assert len(results) == 1
     for rec in results:
         assert rec["ok"] is False
 
@@ -121,29 +119,11 @@ def test_bootstrap_invokes_codegraph_init(tmp_path, monkeypatch):
     assert ["codegraph", "init", str(tmp_path)] in calls
 
 
-def test_bootstrap_invokes_serena_project_create(tmp_path, monkeypatch):
-    calls = []
-
-    def fake_run(cmd, **kwargs):
-        calls.append(list(cmd))
-        return _make_proc(0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    scrum_state.bootstrap_tools(str(tmp_path))
-    assert ["serena", "project", "create", str(tmp_path)] in calls
-
-
-def test_bootstrap_does_not_invoke_serena_init(tmp_path, monkeypatch):
-    calls = []
-
-    def fake_run(cmd, **kwargs):
-        calls.append(list(cmd))
-        return _make_proc(0)
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    scrum_state.bootstrap_tools(str(tmp_path))
-    for call in calls:
-        assert not (call[:2] == ["serena", "init"]), "serena init must not be used"
+def test_bootstrap_returns_exactly_one_codegraph_record(tmp_path, monkeypatch):
+    (tmp_path / ".codegraph").mkdir()
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: _make_proc(0))
+    results = scrum_state.bootstrap_tools(str(tmp_path))
+    assert [r["name"] for r in results] == ["codegraph"]
 
 
 def test_bootstrap_result_has_name_ok_output_keys(tmp_path, monkeypatch):
@@ -161,7 +141,6 @@ def test_bootstrap_result_names(tmp_path, monkeypatch):
     results = scrum_state.bootstrap_tools(str(tmp_path))
     names = [r["name"] for r in results]
     assert "codegraph" in names
-    assert "serena" in names
 
 
 def test_bootstrap_subprocess_called_with_cwd(tmp_path, monkeypatch):
@@ -191,15 +170,14 @@ def test_bootstrap_subprocess_called_with_capture(tmp_path, monkeypatch):
         assert kw.get("text") is True
 
 
-def test_bootstrap_mixed_success_failure(tmp_path, monkeypatch):
-    # codegraph produces its dir, serena does not -> mixed by post-condition.
+def test_bootstrap_codegraph_dir_present_is_ok(tmp_path, monkeypatch):
+    # codegraph produces its dir -> ok by post-condition.
     (tmp_path / ".codegraph").mkdir()
 
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: _make_proc(0, stdout="ok"))
     results = scrum_state.bootstrap_tools(str(tmp_path))
     by_name = {r["name"]: r["ok"] for r in results}
     assert by_name["codegraph"] is True
-    assert by_name["serena"] is False
 
 
 # --- structural test: init.md references bootstrap ---
@@ -214,13 +192,6 @@ def test_init_md_references_bootstrap_step(tmp_path):
 def test_init_md_references_codegraph(tmp_path):
     body = open(INIT_MD).read()
     assert "codegraph" in body, "commands/init.md must mention codegraph in the bootstrap step"
-
-
-def test_init_md_references_serena_project(tmp_path):
-    body = open(INIT_MD).read()
-    assert re.search(r"serena\s+project\s+create", body), (
-        "commands/init.md must reference 'serena project create'"
-    )
 
 
 def test_init_md_bootstrap_is_nonfatal(tmp_path):

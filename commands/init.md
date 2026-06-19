@@ -12,11 +12,11 @@ right, so detect — do not guess — and confirm with the user.
 
 1. **Check dependencies first (folded-in doctor).** Run:
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" doctor`
-   It probes whether the **codegraph** and **serena** MCP servers are *registered with Claude Code*
+   It probes whether the **codegraph** MCP server is *registered with Claude Code*
    (via `claude mcp list`, not a bare PATH check) plus any verify tools. Present the output as-is.
-   For any `[MISSING]` MCP dep, show the printed `claude mcp add …` line and tell the user to run it
-   manually — never run installers yourself. The planning/review agents need these; warn that
-   without them `/up:plan` and `/up:run` fall back to Read+Grep and lose codegraph grounding.
+   codegraph is REQUIRED: `doctor` now exits non-zero if codegraph is `[MISSING]`, so init cannot
+   proceed. Show the printed `claude mcp add …` line, tell the user to run it manually (never run
+   installers yourself), and stop until codegraph is registered.
 
 2. **Migrate an old layout (if present).** If any of `sprint.md`, `velocity.md`, `backlog.md`,
    `retro.md`, `tutored.md` exist under `.scrum/`, this repo used a pre-0.5 version. Print their
@@ -46,13 +46,12 @@ right, so detect — do not guess — and confirm with the user.
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" init \
      --test '<test>' --lint '<lint>' --typecheck '<typecheck>' --smoke '<smoke>' --force
    ```
-   This writes `.scrum/config.json` and gitignores `.scrum/`, `.serena/`, `.codegraph/`.
+   This writes `.scrum/config.json` and gitignores `.scrum/`, `.codegraph/`.
 
-7. **Bootstrap codegraph + serena for this project** (non-fatal):
+7. **Bootstrap codegraph for this project** (non-fatal):
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" bootstrap`
-   Indexes the project (`codegraph init`) and registers it with serena (`serena project create`),
-   then verifies the repo-local `.codegraph/` and `.serena/` dirs exist — success is that
-   post-condition, not exit code. Report per-tool ok/FAIL; a failure does not abort init (re-run
-   later). Both indexes stay repo-local.
+   Indexes the project (`codegraph init`), then verifies the repo-local `.codegraph/` dir exists —
+   success is that post-condition, not exit code. Report per-tool ok/FAIL; a failure does not abort
+   init (re-run later). The index stays repo-local.
 
 8. **Report** the config path and point the user to `/up:plan <task>` as the next step.

@@ -9,7 +9,7 @@
       "name": "up",
       "source": "./",
       "description": "Plan a task into small (\u22643pt) steps, drive each test-first with codegraph grounding and a navigator review, pass a verify-gate before any step closes \u2014 under an always-on lean ladder.",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "category": "workflow",
       "keywords": [
         "tdd",

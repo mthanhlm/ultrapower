@@ -29,7 +29,7 @@ For the target step (for `all`, repeatedly take `scrum_state.py plan-next`):
 3. **Implement.** Invoke the `implementer` agent (opus, deep reasoning) with the locked contract. It
    does red → green → refactor, marking each acceptance criterion red as it goes (`mark-red
    --criterion '<exact acceptance text>'` — the criterion must match a locked acceptance string or it
-   is rejected). **Source is written only via the Edit/Write/serena tools, never shell redirection**
+   is rejected). **Source is written only via the Edit/Write tools, never shell redirection**
    (`echo >`, `sed -i`, `tee`, heredocs) — the bash-guard blocks shell source-writes, and only the
    edit tools route through scope + TDD. It stays inside the contract; if it reports an off-contract
    need, extend scope with `/up:status add-file` and continue — do not edit code yourself here.

@@ -15,7 +15,6 @@ def test_mcp_deps_probed_by_registration_not_path(tmp_path, monkeypatch):
     monkeypatch.setattr(scrum_state, "registered_mcp_servers", lambda: {"codegraph"})
     names = {r["name"]: r for r in scrum_state.check_dependencies(str(tmp_path))}
     assert names["codegraph"]["present"] is True and names["codegraph"]["kind"] == "mcp"
-    assert names["serena"]["present"] is False and names["serena"]["kind"] == "mcp"
 
 
 def test_verify_tools_probed_for_nonempty_entries(tmp_path, monkeypatch):
@@ -59,3 +58,17 @@ def test_registered_mcp_servers_empty_without_claude(monkeypatch):
     # No `claude` binary -> empty set (never a false all-clear).
     monkeypatch.setattr("subprocess.run", lambda *a, **k: (_ for _ in ()).throw(OSError()))
     assert scrum_state.registered_mcp_servers() == set()
+
+
+def test_doctor_cli_nonzero_when_codegraph_missing(tmp_path, monkeypatch):
+    _make_config(tmp_path, {"test": "", "lint": "", "typecheck": "", "smoke": ""})
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(scrum_state, "registered_mcp_servers", set)
+    assert scrum_state._cli(["doctor"]) != 0
+
+
+def test_doctor_cli_zero_when_codegraph_present(tmp_path, monkeypatch):
+    _make_config(tmp_path, {"test": "", "lint": "", "typecheck": "", "smoke": ""})
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(scrum_state, "registered_mcp_servers", lambda: {"codegraph"})
+    assert scrum_state._cli(["doctor"]) == 0

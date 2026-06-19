@@ -20,7 +20,8 @@
       {
         "matcher": "Edit|MultiEdit|Write|NotebookEdit",
         "hooks": [
-          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/comment-noise.py\"" }
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/comment-noise.py\"" },
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/impact-guard.py\"" }
         ]
       }
     ],

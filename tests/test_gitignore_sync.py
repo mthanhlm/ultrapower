@@ -16,7 +16,7 @@ def test_sync_gitignore_adds_all_three(tmp_path):
     (tmp_path / ".git").mkdir()
     scrum_state.sync_gitignore(str(tmp_path))
     text = (tmp_path / ".gitignore").read_text()
-    assert ".scrum/" in text and ".serena/" in text and ".codegraph/" in text
+    assert ".scrum/" in text and ".codegraph/" in text
 
 
 def test_sync_gitignore_idempotent(tmp_path):
@@ -41,7 +41,7 @@ def test_sync_gitignore_no_trailing_newline(tmp_path):
     gi.write_text("__pycache__/")  # intentionally no trailing newline
     scrum_state.sync_gitignore(str(tmp_path))
     lines = gi.read_text().splitlines()
-    for entry in ("__pycache__/", ".serena/", ".codegraph/", ".scrum/"):
+    for entry in ("__pycache__/", ".codegraph/", ".scrum/"):
         assert entry in lines
     content = gi.read_text()
     scrum_state.sync_gitignore(str(tmp_path))

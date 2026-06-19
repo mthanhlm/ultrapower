@@ -336,3 +336,123 @@ def test_comment_noise_catches_seven_word_narration(tmp_path):
 def test_comment_noise_bare_domain_noun_is_not_a_free_pass(tmp_path):
     # "cycle" alone is not a rationale connective — pure narration must still be caught.
     assert _noise(tmp_path, "# update the cycle counter value").returncode == 2
+
+
+# --- impact-guard (ripple-into-scope) ----------------------------------------
+
+def _fake_codegraph(project, affected=None, callers=None, query_files=None):
+    """Install a PATH-shadowing `codegraph` whose JSON output is canned per subcommand.
+
+    `query_files` maps a symbol name -> list of filePaths it is defined in; `codegraph query
+    <S>` returns one definition node per file (used by the collision/uniqueness guard).
+    It logs every invocation's argv to <bin>/calls.log so a test can assert `sync -q` ran.
+    Returns (bin_dir, calls_log).
+    """
+    bin_dir = project / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    calls_log = bin_dir / "calls.log"
+    affected_json = json.dumps(affected or {"changedFiles": [], "affectedTests": [],
+                                            "totalDependentsTraversed": 0})
+    callers_json = json.dumps(callers or {"symbol": "", "callers": []})
+    query_files = query_files or {}
+    script = (project / "bin" / "codegraph")
+    script.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, sys\n"
+        f"open({str(calls_log)!r}, 'a').write(' '.join(sys.argv[1:]) + '\\n')\n"
+        "cmd = sys.argv[1] if len(sys.argv) > 1 else ''\n"
+        f"affected = {affected_json!r}\n"
+        f"callers = {callers_json!r}\n"
+        f"query_files = {json.dumps(query_files)!r}\n"
+        "if cmd == 'affected':\n"
+        "    print(affected)\n"
+        "elif cmd == 'callers':\n"
+        "    print(callers)\n"
+        "elif cmd == 'query':\n"
+        "    sym = sys.argv[2] if len(sys.argv) > 2 else ''\n"
+        "    files = json.loads(query_files).get(sym, [])\n"
+        "    print(json.dumps([{'node': {'name': sym, 'kind': 'function', 'filePath': f}}\n"
+        "                      for f in files]))\n"
+        "sys.exit(0)\n"
+    )
+    os.chmod(script, 0o755)
+    (project / ".codegraph").mkdir(exist_ok=True)
+    return bin_dir, calls_log
+
+
+def _run_impact(project, data, bin_dir):
+    env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"])
+    return subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "impact-guard.py")],
+        input=json.dumps(data), capture_output=True, text=True, env=env,
+    )
+
+
+def test_impact_guard_runs_sync_at_root(tmp_path):
+    bin_dir, calls_log = _fake_codegraph(tmp_path)
+    (tmp_path / ".git").mkdir(exist_ok=True)
+    out = _run_impact(tmp_path, _edit(tmp_path, _mk(tmp_path, "src/a.py")), bin_dir)
+    assert out.returncode == 0 and out.stderr.strip() == ""
+    assert "sync -q" in calls_log.read_text()
+
+
+def test_impact_guard_blocks_on_affected_outside_contract(tmp_path):
+    src = _mk(tmp_path, "src/a.py")
+    bin_dir, _ = _fake_codegraph(tmp_path, affected={
+        "changedFiles": ["src/a.py"],
+        "affectedTests": [{"filePath": "tests/test_other.py"}],
+        "totalDependentsTraversed": 1,
+    })
+    _lock(tmp_path, [src], red=True)
+    out = _run_impact(tmp_path, _edit(tmp_path, src), bin_dir)
+    assert out.returncode == 2
+    assert "test_other.py" in out.stderr
+
+
+def _edit_payload(project, path, new_string):
+    return {"cwd": str(project), "tool_name": "Edit",
+            "tool_input": {"file_path": str(path), "new_string": new_string}}
+
+
+def test_impact_guard_blocks_on_caller_outside_contract(tmp_path):
+    src = _mk(tmp_path, "src/a.py", "def foo():\n    return 1\n")
+    # foo is defined in exactly one file -> uniqueness check passes -> block fires.
+    bin_dir, _ = _fake_codegraph(tmp_path, callers={
+        "symbol": "foo",
+        "callers": [{"filePath": "src/consumer.py", "startLine": 3}],
+    }, query_files={"foo": ["src/a.py"]})
+    _lock(tmp_path, [src], red=True)
+    out = _run_impact(tmp_path, _edit_payload(tmp_path, src, "def foo():\n    return 1\n"), bin_dir)
+    assert out.returncode == 2
+    assert "consumer.py" in out.stderr
+
+
+def test_impact_guard_no_block_on_symbol_name_collision(tmp_path):
+    src = _mk(tmp_path, "src/a.py", "def run():\n    return 1\n")
+    # `run` is defined in TWO files -> callers cannot be attributed -> symbol is skipped,
+    # so the out-of-contract caller never produces a (false) block.
+    bin_dir, _ = _fake_codegraph(tmp_path, callers={
+        "symbol": "run",
+        "callers": [{"filePath": "src/b.py", "startLine": 3}],
+    }, query_files={"run": ["src/a.py", "src/b.py"]})
+    _lock(tmp_path, [src], red=True)
+    out = _run_impact(tmp_path, _edit_payload(tmp_path, src, "def run():\n    return 1\n"), bin_dir)
+    assert out.returncode == 0 and out.stderr.strip() == ""
+
+
+def test_impact_guard_no_block_when_dependents_in_contract(tmp_path):
+    src = _mk(tmp_path, "src/a.py", "def foo():\n    return 1\n")
+    consumer = _mk(tmp_path, "src/consumer.py")
+    bin_dir, _ = _fake_codegraph(tmp_path, callers={
+        "symbol": "foo",
+        "callers": [{"filePath": "src/consumer.py", "startLine": 3}],
+    }, query_files={"foo": ["src/a.py"]})
+    _lock(tmp_path, [src, consumer], red=True)
+    out = _run_impact(tmp_path, _edit_payload(tmp_path, src, "def foo():\n    return 1\n"), bin_dir)
+    assert out.returncode == 0 and out.stderr.strip() == ""
+
+
+def test_impact_guard_fail_open_on_bad_stdin():
+    out = subprocess.run([sys.executable, os.path.join(HOOKS, "impact-guard.py")],
+                         input="not json", capture_output=True, text=True)
+    assert out.returncode == 0

@@ -38,7 +38,7 @@ the working tree for one human review at the end.
 
 **"reject malformed emails on the signup form."**
 
-**0. One-time setup** (per project): `/up:init` — checks codegraph/serena are registered, detects
+**0. One-time setup** (per project): `/up:init` — checks codegraph is registered, detects
 `test`/`lint`/`typecheck`/`smoke`, writes `.scrum/config.json`, gitignores `.scrum/`.
 
 **1. Plan:** `/up:plan "reject malformed emails on signup"`. The **step-planner** grounds in the
@@ -62,7 +62,7 @@ reason).
 
 | Command | What it does |
 |---|---|
-| `/up:init` | Check deps (codegraph/serena registration + verify tools), detect & confirm `test`/`lint`/`typecheck`/`smoke`, scaffold `.scrum/`. Migrates a pre-0.5 layout. |
+| `/up:init` | Check deps (codegraph registration + verify tools), detect & confirm `test`/`lint`/`typecheck`/`smoke`, scaffold `.scrum/`. Migrates a pre-0.5 layout. |
 | `/up:plan <task>` | Break the task into an ordered list of small (≤3pt) steps with file contracts → `plan.json`. Offers a deep multi-planner pass for big/ambiguous tasks. |
 | `/up:run [all\|<id>]` | Drive the plan test-first: lock → implement → review → gate → close. `all` runs autonomously, pausing only at boundaries. |
 | `/up:status [abort\|split\|add-file\|red\|done]` | Show the plan + active lock, or recover/override. |
@@ -94,13 +94,12 @@ ultrapower are unaffected. The lean ladder is the exception — it's injected wh
 
 ## Install
 
-Ultrapower's planning and review agents use two MCP servers — **codegraph** (impact analysis + reuse)
-and **serena** (symbol-level edits). Install those first, then the plugin.
+Ultrapower's planning and review agents use the **codegraph** MCP server (code intelligence: impact
+analysis, reuse, grounding). Install it first, then the plugin.
 
-**1. MCP servers** (once per machine):
+**1. MCP server** (once per machine):
 ```bash
 claude mcp add codegraph -- codegraph serve --mcp
-claude mcp add serena -- serena start-mcp-server --context=claude-code --project-from-cwd
 ```
 
 **2. The plugin:**

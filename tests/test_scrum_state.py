@@ -375,7 +375,7 @@ def test_render_plan_flags_oversized(tmp_path):
 def test_sync_gitignore_ignores_state_dirs_idempotently(tmp_path):
     scrum_state.sync_gitignore(str(tmp_path))
     body = (tmp_path / ".gitignore").read_text()
-    for entry in (".scrum/", ".serena/", ".codegraph/"):
+    for entry in (".scrum/", ".codegraph/"):
         assert entry in body
     scrum_state.sync_gitignore(str(tmp_path))
     assert (tmp_path / ".gitignore").read_text().count(".scrum/") == 1
@@ -436,4 +436,10 @@ def test_doctor_probes_mcp_registration_not_path(tmp_path, monkeypatch):
     report = scrum_state.check_dependencies(str(tmp_path))
     by_name = {r["name"]: r for r in report}
     assert by_name["codegraph"]["present"] is True
-    assert by_name["serena"]["present"] is False
+
+
+def test_no_serena_in_data_tables():
+    assert not any(name == "serena" for name, *_ in scrum_state._BOOTSTRAP)
+    assert not any(name == "serena" for name, *_ in scrum_state._MCP_DEPS)
+    src = open(SCRIPT).read()
+    assert '".serena/"' not in src

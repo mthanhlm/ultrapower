@@ -183,8 +183,8 @@ def scan_lean_debt(root, files=None):
 
 def sync_gitignore(root):
     """Ensure ultrapower's machine-state dirs are always gitignored. `.scrum/` is local by
-    design (per-developer working state, not team artifacts), alongside the .serena/.codegraph
-    indexes. Idempotent: only appends missing entries."""
+    design (per-developer working state, not team artifacts), alongside the .codegraph
+    index. Idempotent: only appends missing entries."""
     gi_path = os.path.join(root, ".gitignore")
     try:
         with open(gi_path) as f:
@@ -196,7 +196,7 @@ def sync_gitignore(root):
         lines[-1] += "\n"
 
     existing = {ln.rstrip("\n") for ln in lines}
-    to_add = [e + "\n" for e in (".scrum/", ".serena/", ".codegraph/") if e not in existing]
+    to_add = [e + "\n" for e in (".scrum/", ".codegraph/") if e not in existing]
     if to_add:
         lines.extend(to_add)
         with open(gi_path, "w") as f:
@@ -366,7 +366,6 @@ def render_plan(root):
 
 _MCP_DEPS = [
     ("codegraph", "claude mcp add codegraph -- codegraph serve --mcp"),
-    ("serena", "claude mcp add serena -- serena start-mcp-server --context=claude-code --project-from-cwd"),
 ]
 
 
@@ -406,16 +405,15 @@ def check_dependencies(root):
 
 _BOOTSTRAP = [
     ("codegraph", ".codegraph", lambda root: ["codegraph", "init", root]),
-    ("serena", ".serena", lambda root: ["serena", "project", "create", root]),
 ]
 
 _BOOTSTRAP_TIMEOUT = 120
 
 
 def bootstrap_tools(root):
-    """Run codegraph init and serena project create for the given project root.
+    """Run codegraph init for the given project root.
 
-    Success is the post-condition that the repo-local index dir (.codegraph/ or .serena/)
+    Success is the post-condition that the repo-local index dir (.codegraph/)
     exists afterward — NOT the command's exit code — so a tool that exits non-zero on a
     re-init still counts when its dir is present. Never raises.
     """
@@ -718,7 +716,7 @@ def _cli(argv=None):
             print("\nTo install missing MCP deps, run manually:")
             for rec in missing_mcp:
                 print(f"  {mcp_guidance[rec['name']]}")
-        return 0
+        return 1 if missing_mcp else 0
 
     if args.cmd == "bootstrap":
         results = bootstrap_tools(root)
@@ -727,7 +725,7 @@ def _cli(argv=None):
             if not rec["ok"] and rec["output"]:
                 print(f"    {rec['output'][:200]}")
         if all(r["ok"] for r in results):
-            print("  repo-local .codegraph/ and .serena/ present")
+            print("  repo-local .codegraph/ present")
         return 0
 
     return 0

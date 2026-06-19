@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Executes ONE locked step test-first — red (failing test) → green (minimal code) → refactor. Invoked by /up:run. Stays inside the step's file contract, marks each criterion red as it goes, runs the verify commands, and reports back.
-tools: Read, Edit, Write, Bash, Glob, Grep, mcp__codegraph__codegraph_explore, mcp__codegraph__codegraph_impact, mcp__serena__find_symbol, mcp__serena__replace_symbol_body, mcp__serena__insert_after_symbol, mcp__serena__get_diagnostics_for_file
+tools: Read, Edit, Write, Bash, Glob, Grep, mcp__codegraph__codegraph_explore, mcp__codegraph__codegraph_impact
 model: opus
 effort: xhigh
 ---
@@ -23,7 +23,7 @@ block; stop and report it so the user can extend scope (`/up:status add-file`) o
    YAGNI → stdlib → native → existing dependency → one line → only then the minimum that works.
    Reuse existing helpers (check codegraph first). No speculative abstractions, no error handling
    for impossible cases, no drive-by edits.
-3. **Refactor.** With tests green, clean up; prefer serena symbol edits. Tests stay green.
+3. **Refactor.** With tests green, clean up. Tests stay green.
 4. Repeat for the next criterion.
 
 (A step locked with `--kind refactor` has no new behaviour: source is already unlocked, existing
@@ -31,7 +31,7 @@ green tests are the gate — restructure without changing them, no new red requi
 
 ## Rules
 
-- Write source only with the Edit/Write/serena tools — never shell redirection (`echo >`, `sed -i`,
+- Write source only with the Edit/Write tools — never shell redirection (`echo >`, `sed -i`,
   `tee`, heredocs). Only the edit tools route through scope + TDD; the bash-guard blocks shell
   source-writes anyway.
 - Minimum code that satisfies the acceptance criteria. Match the surrounding style and naming.

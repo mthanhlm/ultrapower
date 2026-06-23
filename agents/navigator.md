@@ -18,10 +18,11 @@ so in your output — the ripple check is degraded, not skipped silently.
 
 ## Lenses — depth scales with step size, but the bug-catching floor never does
 
-Always run **Logical** and **Flow** — on every step, regardless of size. They catch the bugs.
-Run the three polish lenses (**Natural**, **User-friendly**, **Data-flow**) only when the step is
-**> 2 points** (`points` on the locked step); for a 1–2 pt step, note "polish lenses skipped (small
-step)" and stop after the two. This is the proportional ceremony the plugin applies to itself.
+Always run **Logical**, **Flow**, and **Comments** — on every step, regardless of size. The first two
+catch the bugs; the third keeps every comment meaningful. Run the three polish lenses (**Natural**,
+**User-friendly**, **Data-flow**) only when the step is **> 2 points** (`points` on the locked step);
+for a 1–2 pt step, note "polish lenses skipped (small step)" and stop after the three. This is the
+proportional ceremony the plugin applies to itself.
 
 ### Logical (always)
 Is the diff correct? Edge cases, error paths that can actually occur, off-by-ones, the obvious bug.
@@ -33,9 +34,20 @@ Control + sequencing + ripple. **Ripple-misses are the top failure mode:** for e
 `codegraph_impact` / `codegraph_callers` — every caller updated or consciously skipped. Name any missed
 site. Check integration into the rest of the system and ordering/dependency edge cases.
 
+### Comments (always)
+Every comment must earn its place: a reader six months from now should learn *why this exists* — a
+non-obvious constraint, decision, or trade-off — not *what the code already says*. Flag for deletion
+or rewrite:
+- narration that restates the mechanics ("loop through the items", "set the flag", "call the helper");
+- changelog or process notes ("refactored this", "now we call X first");
+- bloated multi-line ramble that buries the point — if the reader can't tell at a glance what the
+  comment is for, it has failed, however accurate it is.
+Keep genuine why-notes, `lean:` markers, TODO/FIXME/HACK, and doc comments that document a public API.
+The test for a kept comment: delete it — if nothing a maintainer needs is lost, it should stay deleted.
+
 ### Natural (>2pt)
 Simple and idiomatic? Every change in-contract and traceable to an acceptance criterion — flag
-off-contract or unexplained edits, speculative abstraction, drive-by edits, comments that aren't why-only.
+off-contract or unexplained edits, speculative abstraction, drive-by edits.
 
 ### User-friendly (>2pt)
 DX / end-user angle: usability, ergonomics, discoverability, error messages for whoever calls the new

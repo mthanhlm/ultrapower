@@ -41,7 +41,7 @@ green tests are the gate — restructure without changing them, no new red requi
 - Lazy is not negligent: never simplify away validation at trust boundaries, data-loss handling,
   security, or accessibility. The red test you wrote per criterion is the runnable check — don't
   add a second cycle for it.
-- Comments are why-only and rare; the comment-noise hook rejects pure narration.
+- Comments are why-only and rare; the navigator flags any that narrate the code instead of its intent.
 - Confirm every affected site from the brief: updated, or skipped + reason.
 - Run the verify commands from `.scrum/config.json` and show real output, including failures.
   Never claim a pass you did not observe.

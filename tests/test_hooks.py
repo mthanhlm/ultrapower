@@ -148,53 +148,6 @@ def test_plan_guard_fail_open_on_bad_stdin():
     assert out.returncode == 0
 
 
-# --- comment-noise (de-fanged: high precision) -------------------------------
-
-def _noise(tmp_path, body):
-    return _run_hook("comment-noise.py", {"tool_input": {
-        "file_path": str(tmp_path / "a.py"), "new_string": body + "\nx = 1\n"}})
-
-
-def test_comment_noise_blocks_pure_narration(tmp_path):
-    out = _noise(tmp_path, "# Loop through the items")
-    assert out.returncode == 2 and "Narration" in out.stderr
-
-
-def test_comment_noise_blocks_changelog(tmp_path):
-    assert _noise(tmp_path, "# Refactored the parser").returncode == 2
-
-
-def test_comment_noise_allows_why_note_prefix(tmp_path):
-    assert _noise(tmp_path, "# WHY: upstream returns naive datetimes").returncode == 0
-
-
-def test_comment_noise_keeps_lean_marker(tmp_path):
-    assert _noise(tmp_path, "# lean: global lock, per-account locks if throughput matters").returncode == 0
-
-
-def test_comment_noise_keeps_rationale_comment_opening_with_verb(tmp_path):
-    # Opens with a narration verb ("get the lock") but explains WHY — must be kept.
-    assert _noise(tmp_path, "# get the lock first to avoid deadlock").returncode == 0
-
-
-def test_comment_noise_keeps_lazy_init_rationale(tmp_path):
-    assert _noise(tmp_path, "# initialize lazily to avoid an import cycle").returncode == 0
-
-
-def test_comment_noise_ignores_jsdoc_and_sql_lines(tmp_path):
-    data = {"tool_input": {"file_path": str(tmp_path / "a.ts"),
-                           "new_string": " * Sets the value of the field\n-- Get the rows from the table\n"}}
-    assert _run_hook("comment-noise.py", data).returncode == 0
-
-
-def test_comment_noise_keeps_long_explanatory_comment(tmp_path):
-    assert _noise(tmp_path, "# Returns the cached value rather than recomputing it on the hot path").returncode == 0
-
-
-def test_comment_noise_lean_exemption_beats_narration(tmp_path):
-    assert _noise(tmp_path, "# update the cache lean: global lock, shard if hot").returncode == 0
-
-
 # --- done-gate (parallel verify set) -----------------------------------------
 
 def _done_gate(project):
@@ -316,26 +269,6 @@ def test_bash_guard_fail_open_on_bad_stdin():
     out = subprocess.run([sys.executable, os.path.join(HOOKS, "bash-guard.py")],
                          input="not json", capture_output=True, text=True)
     assert out.returncode == 0
-
-
-# --- comment-noise: MultiEdit coverage + raised word cap ---------------------
-
-def test_comment_noise_inspects_multiedit_edits(tmp_path):
-    data = {"tool_input": {"file_path": str(tmp_path / "a.py"),
-                           "edits": [{"old_string": "x = 1",
-                                      "new_string": "# Loop through the items\nx = 1\n"}]}}
-    out = _run_hook("comment-noise.py", data)
-    assert out.returncode == 2, "MultiEdit narration must be caught"
-
-
-def test_comment_noise_catches_seven_word_narration(tmp_path):
-    # 6-word cap used to let this through; cap is now 10.
-    assert _noise(tmp_path, "# Loop through every one of the items").returncode == 2
-
-
-def test_comment_noise_bare_domain_noun_is_not_a_free_pass(tmp_path):
-    # "cycle" alone is not a rationale connective — pure narration must still be caught.
-    assert _noise(tmp_path, "# update the cycle counter value").returncode == 2
 
 
 # --- impact-guard (ripple-into-scope) ----------------------------------------

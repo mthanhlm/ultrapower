@@ -73,7 +73,7 @@ reason).
 |---|---|---|
 | `step-planner` | Read-only; codegraph-grounded decomposition into small (≤3pt) steps. | opus |
 | `implementer` | Red → green → refactor inside the locked contract, per-criterion. | opus |
-| `navigator` | Read-only review; the single gate. Logical+Flow always, polish lenses scale with step size. | opus |
+| `navigator` | Read-only review; the single gate. Logical+Flow+Comments always, polish lenses scale with step size. | opus |
 
 ## What it enforces (hooks)
 
@@ -84,7 +84,6 @@ reason).
 - **scope-guard** — blocks edits to files outside the locked step's contract.
 - **tdd-guard** — blocks source edits until a failing test is observed (`mark-red`); the close gate
   (`check-tdd`) additionally refuses to close until every acceptance criterion has its own red test.
-- **comment-noise** — rejects pure narration comments; keeps why-notes, JSDoc, SQL, and `lean:` markers.
 - **done-gate** — runs the verify set in parallel (120s/check); a step cannot close on a red gate.
 - **lean-inject** — injects the lean ladder into every session (wherever `.scrum/` exists). The lean
   layer is adapted from [ponytail](https://github.com/DietrichGebert/ponytail) (MIT).

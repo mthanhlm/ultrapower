@@ -1,7 +1,7 @@
 {
   "name": "up",
   "displayName": "Ultrapower",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Forces a task into small, controllable, hook-enforced increments: plan into \u22643pt steps, drive each test-first with codegraph grounding and a navigator review, pass a verify-gate before any step closes \u2014 all under an always-on lean ladder.",
   "author": {
     "name": "mthanhlm"

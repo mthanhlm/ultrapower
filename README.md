@@ -85,7 +85,8 @@ reason).
 - **tdd-guard** — blocks source edits until a failing test is observed (`mark-red`); the close gate
   (`check-tdd`) additionally refuses to close until every acceptance criterion has its own red test.
 - **done-gate** — runs the verify set in parallel (120s/check); a step cannot close on a red gate.
-- **lean-inject** — injects the lean ladder into every session (wherever `.scrum/` exists). The lean
+- **lean-inject** — injects the lean ladder into every session (wherever `.scrum/` exists); the
+  ladder also carries the shared-team comment rule, so that doctrine is discoverable too. The lean
   layer is adapted from [ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 
 No plan and no active step ⇒ all guards are inert, so ad-hoc work and projects that don't use

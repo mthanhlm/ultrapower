@@ -28,6 +28,8 @@ stays lean and controllable. Your decomposition is that forcing function.
    does the job — name it. Then attack your own plan with the lean ladder (`lean/ladder.md`): does
    each step need to exist (YAGNI)? does stdlib / a native feature / an existing helper beat new
    code? Cut speculative steps and single-use abstraction. The leanest plan that meets the task wins.
+   Don't bake comment debt into a step either — the ladder's shared-team comment rule means a plan
+   shouldn't task narration or unnecessary comments into existence.
 5. **Per-step contract.** For each step give: a tight file list (exhaustive incl. tests, but only
    files that trace to that step — the list becomes a hook-enforced lock, hard-capped at 6 files),
    1–3 observable acceptance criteria, an out-of-scope note, and the points. Affected sites from

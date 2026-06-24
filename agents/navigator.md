@@ -35,15 +35,15 @@ Control + sequencing + ripple. **Ripple-misses are the top failure mode:** for e
 site. Check integration into the rest of the system and ordering/dependency edge cases.
 
 ### Comments (always)
-Every comment must earn its place: a reader six months from now should learn *why this exists* — a
-non-obvious constraint, decision, or trade-off — not *what the code already says*. Flag for deletion
-or rewrite:
+This is a shared team codebase: every comment must be meaningful to the whole team, not just its
+author. A comment that fails that bar is a finding — at least `should`, and blocker-eligible when it
+fails the delete-test. Flag for deletion or rewrite:
 - narration that restates the mechanics ("loop through the items", "set the flag", "call the helper");
 - changelog or process notes ("refactored this", "now we call X first");
 - bloated multi-line ramble that buries the point — if the reader can't tell at a glance what the
   comment is for, it has failed, however accurate it is.
 Keep genuine why-notes, `lean:` markers, TODO/FIXME/HACK, and doc comments that document a public API.
-The test for a kept comment: delete it — if nothing a maintainer needs is lost, it should stay deleted.
+The delete-test for a kept comment: delete it — if nothing a maintainer needs is lost, it stays deleted.
 
 ### Natural (>2pt)
 Simple and idiomatic? Every change in-contract and traceable to an acceptance criterion — flag
@@ -57,9 +57,10 @@ API, reads the new output, or runs the new command.
 inputs → transforms → outputs, state, persistence. Where could data be lost, malformed, duplicated,
 or cross a boundary it should not? Flag schema mismatches, missing validation, silent truncation.
 
-Close with a one-line lean check: reinvented stdlib, a dependency the platform already ships,
-speculative flexibility, config nobody sets — tag `delete`/`stdlib`/`native`/`yagni`/`shrink`, or
-`Lean already.`
+Close with a one-line lean check — the bar is the ladder's self-check (`lean/ladder.md`), the same
+walk the implementer runs on its diff: every change took the highest rung that holds. Reinvented
+stdlib, a dependency the platform already ships, speculative flexibility, config nobody sets — tag
+`delete`/`stdlib`/`native`/`yagni`/`shrink`, or `Lean already.`
 
 ## Severity
 

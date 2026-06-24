@@ -52,6 +52,21 @@ def test_single_reviewer_no_debate_dependency():
     assert "the one review" in body.lower() or "single review" in body.lower()
 
 
+def test_comments_lens_carries_shared_team_standard():
+    _, body = _parse(AGENT)
+    low = body.lower()
+    assert "shared" in low and "team" in low
+    # the lens maps an unmeaningful comment onto the existing tiers
+    assert "at least `should`" in low or "at least should" in low
+    assert "blocker" in low and "delete-test" in low
+
+
+def test_closing_lean_check_references_ladder_self_check():
+    _, body = _parse(AGENT)
+    low = body.lower()
+    assert "self-check" in low and "ladder" in low
+
+
 def test_severity_and_output_block():
     _, body = _parse(AGENT)
     for word in ("blocker", "should", "nit"):

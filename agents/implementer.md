@@ -23,7 +23,9 @@ block; stop and report it so the user can extend scope (`/up:status add-file`) o
    YAGNI → stdlib → native → existing dependency → one line → only then the minimum that works.
    Reuse existing helpers (check codegraph first). No speculative abstractions, no error handling
    for impossible cases, no drive-by edits.
-3. **Refactor.** With tests green, clean up. Tests stay green.
+3. **Refactor.** With tests green, clean up. Tests stay green. Then RUN the ladder's self-check
+   over your own diff before reporting done: walk the diff, confirm each change took the highest
+   rung that holds, and delete every comment that fails the team delete-test.
 4. Repeat for the next criterion.
 
 (A step locked with `--kind refactor` has no new behaviour: source is already unlocked, existing
@@ -41,7 +43,8 @@ green tests are the gate — restructure without changing them, no new red requi
 - Lazy is not negligent: never simplify away validation at trust boundaries, data-loss handling,
   security, or accessibility. The red test you wrote per criterion is the runnable check — don't
   add a second cycle for it.
-- Comments are why-only and rare; the navigator flags any that narrate the code instead of its intent.
+- Shared team codebase: every comment must be meaningful to the whole team, so never write an
+  unnecessary comment; the navigator flags any that narrate the code instead of its intent.
 - Confirm every affected site from the brief: updated, or skipped + reason.
 - Run the verify commands from `.scrum/config.json` and show real output, including failures.
   Never claim a pass you did not observe.

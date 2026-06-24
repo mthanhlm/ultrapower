@@ -392,6 +392,18 @@ def test_ladder_file_exists_and_has_rungs():
         assert rung in body
 
 
+def test_ladder_has_shared_team_comments_section():
+    body = scrum_state.ladder_text()
+    assert "## Comments" in body
+    assert "shared" in body and "team" in body
+
+
+def test_ladder_ends_with_imperative_self_check():
+    body = scrum_state.ladder_text()
+    assert "At green and refactor, walk the diff" in body
+    assert "delete every comment that fails the team delete-test" in body
+
+
 def test_lean_debt_parses_marker(tmp_path):
     f = tmp_path / "m.py"
     f.write_text("x = 1  # lean: global lock, per-account if hot\n")

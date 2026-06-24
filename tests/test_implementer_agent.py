@@ -51,3 +51,17 @@ def test_body_states_carve_outs():
 def test_body_output_block():
     _, body = _parse(AGENT)
     assert "Done:" in body and "Verify:" in body
+
+
+def test_green_refactor_runs_ladder_self_check_on_diff():
+    _, body = _parse(AGENT)
+    low = body.lower()
+    assert "self-check" in low, "must RUN the ladder's self-check, not just apply/reference it"
+    assert "walk the diff" in low, "self-check is a forcing action over the implementer's own diff"
+
+
+def test_comment_guidance_invokes_shared_team_rule():
+    _, body = _parse(AGENT)
+    low = body.lower()
+    assert "shared" in low and "team" in low, "comment rule must invoke the shared-team codebase"
+    assert "unnecessary comment" in low, "never write an unnecessary comment — not only why-only"

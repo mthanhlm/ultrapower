@@ -26,6 +26,14 @@ The ladder is a reflex, not a research project. Two rungs work → take the high
   A shortcut with a known ceiling names the ceiling and the upgrade path:
   `# lean: global lock, per-account locks if throughput matters`.
 
+## Comments
+
+This is a shared team codebase: every comment must be meaningful to the whole team, so an
+unnecessary comment is never written. The delete-test on each one — delete it; if nothing a
+maintainer needs is lost, it stays deleted. Keep only genuine why-notes (a non-obvious constraint
+or trade-off), `lean:` markers, TODO/FIXME/HACK, and doc comments on a public API. Drop narration
+that restates the code, changelog or process notes, and multi-line ramble.
+
 ## When NOT to be lazy
 
 Never simplify away: input validation at trust boundaries, error handling that prevents data
@@ -35,4 +43,5 @@ is unfinished: non-trivial logic (a branch, a loop, a parser, a money/security p
 runnable check behind — the smallest thing that fails if the logic breaks. Trivial one-liners
 need no test; YAGNI applies to tests too.
 
-The shortest path to done is the right path.
+At green and refactor, walk the diff: confirm each change took the highest rung that holds, then
+delete every comment that fails the team delete-test. The shortest path to done is the right path.

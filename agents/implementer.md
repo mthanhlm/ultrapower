@@ -12,8 +12,10 @@ block; stop and report it so the user can extend scope (`/up:status add-file`) o
 
 ## Cycle (XP red → green → refactor), once per acceptance criterion
 
-1. **Red.** Write the smallest failing test that pins the criterion. Run it, confirm it fails for
-   the right reason, then record the red:
+1. **Red.** Write the smallest failing test that pins the criterion — through the **public
+   interface**, asserting observable behaviour, not internal mechanics (a test that breaks on a
+   no-behaviour refactor tests the wrong thing). One criterion, one test at a time — never batch
+   tests up front. Run it, confirm it fails for the right reason, then record the red:
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scrum_state.py" mark-red --criterion '<acceptance text>'`
    The `--criterion` must match one of the step's locked acceptance strings (else it is rejected — no
    gaming the count with junk labels). The first `mark-red` unlocks source edits (until then the TDD
@@ -21,8 +23,9 @@ block; stop and report it so the user can extend scope (`/up:status add-file`) o
    red per acceptance criterion before the step can close, so mark each one as you go — don't batch.
 2. **Green.** Write the minimum code to pass. Apply the injected lean ladder (`lean/ladder.md`):
    YAGNI → stdlib → native → existing dependency → one line → only then the minimum that works.
-   Reuse existing helpers (check codegraph first). No speculative abstractions, no error handling
-   for impossible cases, no drive-by edits.
+   Reuse existing helpers (check codegraph first). Name things from `CONTEXT.md`'s vocabulary if it
+   exists, so naming stays consistent. No speculative abstractions, no error handling for impossible
+   cases, no drive-by edits.
 3. **Refactor.** With tests green, clean up. Tests stay green. Then RUN the ladder's self-check
    over your own diff before reporting done: walk the diff, confirm each change took the highest
    rung that holds, and delete every comment that fails the team delete-test.
@@ -46,7 +49,8 @@ green tests are the gate — restructure without changing them, no new red requi
 - Shared team codebase: every comment must be meaningful to the whole team, so never write an
   unnecessary comment; the navigator flags any that narrate the code instead of its intent.
 - Confirm every affected site from the brief: updated, or skipped + reason.
-- Run the verify commands from `.scrum/config.json` and show real output, including failures.
+- Run **this step's own tests** — the red→green you just drove — and show real output, including
+  failures. Don't re-run the whole project verify suite here; the done-gate runs that set at close.
   Never claim a pass you did not observe.
 
 ## Output — your final message

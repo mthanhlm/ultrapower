@@ -21,13 +21,15 @@ Commands are namespaced `/up:` (the plugin is named `up`).
 
 ```
 /up:init               once per project — check deps, detect verify commands, scaffold .scrum/
-/up:plan <task>        break the task into an ordered list of small (≤3pt) steps → plan.json
+/up:plan <task>        align first (grill if ambiguous, challenge bad design), then break the task
+                       into an ordered list of small (≤3pt) steps → plan.json
 /up:run all            drive every step autonomously, pausing only at boundaries:
   (per step)             lock contract → implementer (TDD red→green→refactor) →
                          navigator review → TDD gate → verify-gate → close → next step
 /up:run <id>           drive exactly one step (tight-control lane)
+/up:debug <symptom>    diagnose a bug — red-capable repro first, then plan the fix test-first
 /up:status             show the plan + active lock — or recover: abort | split | add-file | red | done
-(always-on)            the lean ladder is injected every session — YAGNI → stdlib → native → one line
+(always-on)            the lean ladder + a "right shape" design check are injected every session
 ```
 
 `/up:run all` walks the whole plan and only stops at a **boundary**: an oversized step, an open
@@ -63,8 +65,9 @@ reason).
 | Command | What it does |
 |---|---|
 | `/up:init` | Check deps (codegraph registration + verify tools), detect & confirm `test`/`lint`/`typecheck`/`smoke`, scaffold `.scrum/`. Migrates a pre-0.5 layout. |
-| `/up:plan <task>` | Break the task into an ordered list of small (≤3pt) steps with file contracts → `plan.json`. Offers a deep multi-planner pass for big/ambiguous tasks. |
+| `/up:plan <task>` | Align first (grill ambiguous tasks, challenge bad design), then break the task into an ordered list of small (≤3pt) steps with file contracts → `plan.json`. Offers a diverse-lens deep pass for big tasks. |
 | `/up:run [all\|<id>]` | Drive the plan test-first: lock → implement → review → gate → close. `all` runs autonomously, pausing only at boundaries. |
+| `/up:debug <symptom>` | Diagnose a bug or perf regression: red-capable repro first, ranked hypotheses, root cause — then drive the fix test-first via `/up:plan`. |
 | `/up:status [abort\|split\|add-file\|red\|done]` | Show the plan + active lock, or recover/override. |
 
 ## Agents
@@ -74,6 +77,7 @@ reason).
 | `step-planner` | Read-only; codegraph-grounded decomposition into small (≤3pt) steps. | opus |
 | `implementer` | Red → green → refactor inside the locked contract, per-criterion. | opus |
 | `navigator` | Read-only review; the single gate. Logical+Flow+Comments always, polish lenses scale with step size. | opus |
+| `diagnostician` | Read-mostly bug/perf diagnosis: red-capable repro before any hypothesis; proposes the fix, never ships it. | opus |
 
 ## What it enforces (hooks)
 
@@ -85,9 +89,10 @@ reason).
 - **tdd-guard** — blocks source edits until a failing test is observed (`mark-red`); the close gate
   (`check-tdd`) additionally refuses to close until every acceptance criterion has its own red test.
 - **done-gate** — runs the verify set in parallel (120s/check); a step cannot close on a red gate.
-- **lean-inject** — injects the lean ladder into every session (wherever `.scrum/` exists); the
-  ladder also carries the shared-team comment rule, so that doctrine is discoverable too. The lean
-  layer is adapted from [ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
+- **lean-inject** — injects the lean ladder (and the project's `CONTEXT.md` glossary, if one exists)
+  into every session (wherever `.scrum/` exists); the ladder also carries the shared-team comment rule
+  and a "right shape" design check, so that doctrine is discoverable too. The lean layer is adapted
+  from [ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 
 No plan and no active step ⇒ all guards are inert, so ad-hoc work and projects that don't use
 ultrapower are unaffected. The lean ladder is the exception — it's injected wherever `.scrum/` exists.

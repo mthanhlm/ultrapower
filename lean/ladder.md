@@ -14,6 +14,16 @@ Before writing code, stop at the first rung that holds:
 
 The ladder is a reflex, not a research project. Two rungs work → take the higher one and move on.
 
+## Right shape — challenge the premise
+
+The ladder cuts unneeded *code*; this cuts the wrong *design*. Before planning or writing, check the
+task isn't asking for the wrong shape: a component taking on a responsibility that isn't its job (a
+planner reaching into the DB, a view doing business logic), an abstraction nothing varies across,
+duplicated ownership of one fact, a layer that only forwards. If the ask embeds a smell like that,
+**stop and say so — name the smell and the better shape — instead of building it.** Completing a bad
+design only turns one bad decision into ten. The real help is catching it at the ask, not after the
+drift. This is collaboration, not obedience: a good engineer pushes back on a bad ask.
+
 ## Rules
 
 - No unrequested abstractions: no interface with one implementation, no factory for one product,

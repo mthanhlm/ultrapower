@@ -79,5 +79,5 @@ def test_invoked_agents_exist_by_name():
         agent_names.add(fm["name"])
     # the agents the commands invoke by backtick name
     for md in COMMANDS:
-        for name in re.findall(r"`(step-planner|navigator|implementer|scrum-master|debate|teacher)`", open(md).read()):
+        for name in re.findall(r"`(step-planner|navigator|implementer|diagnostician|scrum-master|debate|teacher)`", open(md).read()):
             assert name in agent_names, f"{os.path.basename(md)} invokes agent '{name}' which does not exist"

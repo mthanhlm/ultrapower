@@ -187,6 +187,30 @@ def test_done_gate_needs_active_step(tmp_path):
     assert _done_gate(tmp_path).returncode == 1
 
 
+def _done_gate_checks(project, checks):
+    return subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "done-gate.py"), str(project), "--checks", checks],
+        capture_output=True, text=True,
+    )
+
+
+def test_done_gate_checks_subset_runs_only_named(tmp_path):
+    # test would fail, lint would pass; restrict to lint -> the failing test is skipped, gate passes.
+    src = _mk(tmp_path, "src/a.py")
+    _lock(tmp_path, [src], red=True)
+    _state(tmp_path, "init", "--test", "false", "--lint", "true", "--force")
+    out = _done_gate_checks(tmp_path, "lint")
+    assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_done_gate_checks_subset_excludes_unnamed(tmp_path):
+    # restrict to test -> the failing test is the only check that runs -> gate fails.
+    src = _mk(tmp_path, "src/a.py")
+    _lock(tmp_path, [src], red=True)
+    _state(tmp_path, "init", "--test", "false", "--lint", "true", "--force")
+    assert _done_gate_checks(tmp_path, "test").returncode == 1
+
+
 # --- lean-inject -------------------------------------------------------------
 
 def _init_lean(project):

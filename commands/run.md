@@ -36,18 +36,26 @@ For the target step (for `all`, repeatedly take `scrum_state.py plan-next`):
 
 4. **Review (the single gate).** Invoke the `navigator` agent on the diff. It runs Logical+Flow
    always and the polish lenses for >2pt steps. **For a risky step** (touches code with many callers,
-   a security/money/data path, or the planner flagged it), run the review as a small panel: 3
-   independent `navigator` invocations, and treat a finding as a real blocker when ≥2 agree.
-   **Boundary — blockers:** if any blocker is open, STOP and report it; hand it back to the
-   implementer to fix test-first, then re-review. Do not close with open blockers.
+   a security/money/data path, or the planner flagged it), run the review as a **panel**: 3
+   `navigator` agents in parallel (one message, concurrent calls), each leaning a different lens — one
+   on **correctness/logic**, one on **ripple/integration**, one on **data-flow/security** — so the
+   panel catches more than one reviewer would. Treat a finding as a real blocker only when **≥2 agree**
+   on it (dedupe by file + topic). **Boundary — blockers:** if any blocker is open, STOP and report
+   it; hand it back to the implementer to fix test-first, then re-review. Do not close with open
+   blockers.
 
 5. **TDD gate.** Run `scrum_state.py check-tdd` (skip for `--kind refactor`). It fails if any
    acceptance criterion lacks a recorded red test — every criterion must have been driven test-first.
    If it fails, send it back to the implementer.
 
-6. **Done-gate.** Run `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/done-gate.py"`. It runs the configured
-   verify set in parallel (120s/check). **Boundary — red gate:** if it exits non-zero, STOP, show the
-   failing output, and do not close.
+6. **Done-gate.** For `all`, run the **fast subset** at each close —
+   `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/done-gate.py" --checks lint,typecheck,smoke` — and let the
+   full `test` suite run **once at plan-end** (see Boundaries). Re-running the whole suite on every
+   close is what made a multi-step `all` crawl, and the implementer already drove this step's own
+   tests green. For a single `/up:run <id>` (the tight lane), run the **full** gate now:
+   `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/done-gate.py"`. It runs the configured checks in parallel
+   (120s/check). **Boundary — red gate:** if it exits non-zero, STOP, show the failing output, and do
+   not close.
 
 7. **Close + advance.** Only after review passes, `check-tdd` passes, and the gate is green:
    ```
@@ -64,5 +72,8 @@ An oversized/split-refused step, an open review blocker, a red done-gate, or the
 That is the only time `/up:run all` stops — otherwise it drives top-to-bottom unattended.
 **Never commit:** leave all changes in the working tree for one human review at plan end. `all`
 skips `blocked` steps (aborted earlier) rather than retrying them — re-drive one explicitly with
-`/up:run <id>`. When the plan completes, report what shipped, any skipped/blocked steps, and the
-accumulated `lean:` debt.
+`/up:run <id>`. When the plan completes, run the **full** verify gate once over the whole tree —
+`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/done-gate.py"` (every configured check, including the full
+`test` suite the per-step closes deferred). A red here is a boundary: show the failing output and
+stop; the plan's work stays in the tree, nothing auto-commits. Then report what shipped, any
+skipped/blocked steps, and the accumulated `lean:` debt.

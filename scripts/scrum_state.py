@@ -141,6 +141,16 @@ def ladder_text(path=_LADDER_PATH):
         return ""
 
 
+def context_text(root):
+    """The project glossary (`CONTEXT.md`), consumed — never written — for shared vocabulary.
+    Empty when absent, so projects without one are unaffected."""
+    try:
+        with open(os.path.join(root, "CONTEXT.md")) as f:
+            return f.read()
+    except (OSError, ValueError):
+        return ""
+
+
 # lean: line grep, not a per-language parser — can match lean: inside string literals; parse per-language if the noise bites
 _LEAN_DEBT = re.compile(r"(?:#|//|/\*+|--|;)\s*lean:\s*(.+?)\s*(?:\*/)?\s*$", re.I)
 

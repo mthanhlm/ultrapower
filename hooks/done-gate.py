@@ -5,7 +5,11 @@ Invoked by `/up:run` before a step closes. Reads `.scrum/config.json` verify com
 each non-empty one in the project root, IN PARALLEL with a per-check timeout, so a slow check
 never serializes behind the others and a hung/watch-mode command can't freeze the close for tens
 of minutes. Exits 0 only if all configured checks pass; exits 1 with the failing output otherwise.
-A step must not close on a red gate. Optional argv[0] overrides the cwd.
+A step must not close on a red gate. Optional positional argv overrides the cwd.
+
+`--checks a,b` runs only the named subset (e.g. the fast checks at every step close), so
+`/up:run all` can defer the full `test` suite to one run at plan-end instead of re-running it on
+every close. No `--checks` ⇒ the full configured set, as before.
 """
 import os
 import subprocess
@@ -32,25 +36,33 @@ def _run_one(root, name, cmd):
         return name, False, str(exc)
 
 
-def run_gate(root):
+def run_gate(root, only=None):
     verify = scrum_state.load_config(root).get("verify", {})
-    active = {name: (verify.get(name) or "").strip() for name in ORDER}
+    names = [n for n in ORDER if only is None or n in only]
+    active = {name: (verify.get(name) or "").strip() for name in names}
     active = {name: cmd for name, cmd in active.items() if cmd}
     outcomes = {}
     if active:
         with ThreadPoolExecutor(max_workers=len(active)) as pool:
             for name, ok, out in pool.map(lambda kv: _run_one(root, *kv), active.items()):
                 outcomes[name] = (ok, out)
-    return [(name, *outcomes.get(name, (None, ""))) for name in ORDER]
+    return [(name, *outcomes.get(name, (None, ""))) for name in names]
 
 
 def main(argv=None):
+    argv = list(argv or [])
+    only = None
+    if "--checks" in argv:
+        i = argv.index("--checks")
+        if i + 1 < len(argv):
+            only = {c.strip() for c in argv[i + 1].split(",") if c.strip()}
+        del argv[i:i + 2]
     cwd = (argv or [None])[0] or os.getcwd()
     root = scrum_state.find_project_root(cwd)
     if not scrum_state.load_current_story(root):
         print("no active step (nothing to gate)", file=sys.stderr)
         return 1
-    results = run_gate(root)
+    results = run_gate(root, only)
     for name, ok, _ in results:
         mark = "skip" if ok is None else ("pass" if ok else "FAIL")
         print(f"  {name:9} {mark}")

@@ -21,6 +21,9 @@ def main():
     text = scrum_state.ladder_text()
     if not text:
         return
+    context = scrum_state.context_text(root)
+    if context:
+        text = text + "\n\n---\n\n# Project glossary (CONTEXT.md)\n\nUse these terms; never write this file from a command.\n\n" + context
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "SessionStart",
         "additionalContext": text,

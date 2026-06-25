@@ -20,7 +20,7 @@ Commands are namespaced `/up:` (the plugin is named `up`).
 ## The loop
 
 ```
-/up:init               once per project — check deps, detect verify commands, scaffold .scrum/
+/up:init               once per project — deps, verify commands, scaffold .scrum/, optional glossary
 /up:plan <task>        align first (grill if ambiguous, challenge bad design), then break the task
                        into an ordered list of small (≤3pt) steps → plan.json
 /up:run all            drive every step autonomously, pausing only at boundaries:
@@ -64,7 +64,7 @@ reason).
 
 | Command | What it does |
 |---|---|
-| `/up:init` | Check deps (codegraph registration + verify tools), detect & confirm `test`/`lint`/`typecheck`/`smoke`, scaffold `.scrum/`. Migrates a pre-0.5 layout. |
+| `/up:init` | Check deps (codegraph registration + verify tools), detect & confirm `test`/`lint`/`typecheck`/`smoke`, scaffold `.scrum/`, and optionally seed a `CONTEXT.md` glossary (draft from code + interview). Migrates a pre-0.5 layout. |
 | `/up:plan <task>` | Align first (grill ambiguous tasks, challenge bad design), then break the task into an ordered list of small (≤3pt) steps with file contracts → `plan.json`. Offers a diverse-lens deep pass for big tasks. |
 | `/up:run [all\|<id>]` | Drive the plan test-first: lock → implement → review → gate → close. `all` runs autonomously, pausing only at boundaries. |
 | `/up:debug <symptom>` | Diagnose a bug or perf regression: red-capable repro first, ranked hypotheses, root cause — then drive the fix test-first via `/up:plan`. |

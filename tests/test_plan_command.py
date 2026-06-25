@@ -49,3 +49,14 @@ def test_init_folds_doctor_and_migration():
     assert "migrat" in low
     # no visibility prompt anymore
     assert "always local" in low or "always local (gitignored)" in low
+
+
+def test_init_offers_glossary_seed():
+    fm, body = _parse(INIT)
+    low = body.lower()
+    assert "context.md" in low and "glossary" in low
+    # opt-in draft-from-code + interview-when-unclear, skippable for an empty repo
+    assert "offer" in low or "optional" in low
+    assert "one question at a time" in low or "interview" in low
+    assert "skip" in low  # empty/throwaway repo is skipped, not force-seeded
+    assert "AskUserQuestion" in fm["allowed-tools"]

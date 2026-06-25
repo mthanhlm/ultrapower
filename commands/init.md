@@ -1,7 +1,7 @@
 ---
 description: Initialise ultrapower in this project — check deps, detect verify commands, scaffold .scrum/. One-time per project.
 argument-hint: "[--force]"
-allowed-tools: Bash, Read, Glob, Write, AskUserQuestion
+allowed-tools: Bash, Read, Glob, Grep, Write, AskUserQuestion, mcp__codegraph__codegraph_explore
 ---
 
 Set up ultrapower for the current project. This is the one-time, per-project step that teaches the
@@ -54,4 +54,18 @@ right, so detect — do not guess — and confirm with the user.
    success is that post-condition, not exit code. Report per-tool ok/FAIL; a failure does not abort
    init (re-run later). The index stays repo-local.
 
-8. **Report** the config path and point the user to `/up:plan <task>` as the next step.
+8. **Seed a project glossary (optional).** A `CONTEXT.md` glossary lets the planner, navigator, and
+   implementer speak your domain's words (and think in fewer tokens). **Skip a near-empty or throwaway
+   repo** — a glossary guessed before there's a domain is noise. If the repo has real code, **offer**
+   it (AskUserQuestion, easy to skip): draft 3–8 genuinely project-specific terms from the README and
+   main modules (one `codegraph_explore` over the core flows helps) — recurring domain nouns, names
+   that mean something special here, words used inconsistently. **Skip generic programming words.**
+   Present the draft, and **interview only where a term is unclear or ambiguous** (one question at a
+   time, with your recommended definition — "you say 'account': Customer or User?"); ask for any term
+   the code can't reveal. Write the confirmed terms to `CONTEXT.md` at the repo root
+   (`git rev-parse --show-toplevel`): bold term + a 1–2 sentence definition of what it IS + an
+   optional `_Avoid:_` synonym list — glossary only, no implementation detail or spec. On skip, note
+   they can add `CONTEXT.md` by hand anytime (agents read it whenever it appears) or re-run
+   `/up:init --force`.
+
+9. **Report** the config path and point the user to `/up:plan <task>` as the next step.

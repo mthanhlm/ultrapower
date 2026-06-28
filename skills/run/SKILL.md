@@ -44,18 +44,22 @@ the same request — but because they're isolated, pass each one enough to work 
 the investigation/review question, the intended outcome, key constraints, and the
 findings form you need back.
 
-## CodeGraph readiness (init on entry; once per repo)
-On entry, decide readiness from the **filesystem at the current repo root**, never
-from whether MCP queries return data — a *different* repo with the **same folder
-name** (or an MCP server launched outside this tree) can answer for the wrong
-codebase. Resolve the root with `git rev-parse --show-toplevel` and check for
-`<root>/.codegraph/` directly. If it is **absent** and CodeGraph is available,
-initialize via `ultrapower:codegraph` before routing — it ensures `.codegraph/` is
-in `.gitignore`, then runs `codegraph init` once. After that the index is ready for
-any request that needs structural understanding. Skip init only for requests not
-about a source tree; pause to ask first only if the repo is exceptionally large or
-the index path is protected. Don't re-check on every request. Detection, init
-policy, and fallback: [codegraph policy](../references/codegraph.md).
+## CodeGraph readiness (auto-ensured on entry)
+The current repo's index is ensured automatically when this skill loads:
+
+!`bash "${CLAUDE_SKILL_DIR}/scripts/codegraph-ensure.sh"`
+
+That line runs **before** you see this content: it checks the **current repo root**
+on the filesystem and, if there's no `.codegraph/` index, adds `.codegraph/` to
+`.gitignore` and runs `codegraph init` for THIS repo. It's a fast no-op when the
+repo is already indexed, isn't a git repo, or the `codegraph` CLI is absent — read
+its status line above for what happened. (If that status line is missing, run it
+yourself: `bash "${CLAUDE_SKILL_DIR}/scripts/codegraph-ensure.sh"`.)
+
+Decide readiness from that filesystem check, never from whether MCP queries return
+data — a *different* repo with the **same folder name** can answer for the wrong
+tree. When you query MCP, pin it to this tree with `projectPath: <root>`. Tool use,
+refresh, and fallback: [codegraph policy](../references/codegraph.md).
 
 ## Before any file write
 Load and apply [repository safety](../references/safety.md) (the full policy):

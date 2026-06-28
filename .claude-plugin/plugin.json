@@ -1,7 +1,7 @@
 {
   "name": "ultrapower",
   "displayName": "Ultrapower",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A lean, project-aware engineering companion: one entry point routes any request \u2014 implement, fix, investigate, explain, review, document, or plan \u2014 to the right on-demand specialist, grounded in CodeGraph, with verification proportional to risk and minimal ceremony.",
   "author": {
     "name": "mthanhlm"

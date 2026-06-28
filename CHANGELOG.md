@@ -2,6 +2,21 @@
 
 All notable changes to Ultrapower are documented here.
 
+## 1.1.1 — CodeGraph readiness via injected script (replaces the hook)
+
+### Changed
+- **Replaced the `SessionStart` hook with a dynamic-context-injected script.** The
+  router skill (`ultrapower:run`) runs `skills/run/scripts/codegraph-ensure.sh` via
+  dynamic context injection every time it loads, so the **current** repo is indexed
+  on entry without depending on a session hook firing. Same behavior: add
+  `.codegraph/` to `.gitignore` and `codegraph init` when the repo has no index;
+  idempotent and fail-open (no-op when already indexed, not a git repo, or the
+  `codegraph` CLI is absent).
+
+### Removed
+- `hooks/` (the 1.1.0 `SessionStart` hook) — it didn't reliably fire; the injected
+  script replaces it.
+
 ## 1.1.0 — Guaranteed CodeGraph readiness + entry-name fix
 
 ### Added

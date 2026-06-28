@@ -28,10 +28,10 @@ def fm(path):
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n", t, re.S)
     return (m.group(1), t[m.end():]) if m else (None, t)
 
-SKILLS = ["ultrapower","implement","explore","document","plan","review","codegraph"]
+SKILLS = ["run","implement","explore","document","plan","review","codegraph"]
 REFS   = ["challenge","comments","verify","safety","codegraph","persistence","contract"]
 REQUIRED = ([".claude-plugin/plugin.json",".claude-plugin/marketplace.json","README.md",
-             "LICENSE","CHANGELOG.md"]
+             "LICENSE","CHANGELOG.md","skills/run/scripts/codegraph-ensure.sh"]
             + [f"skills/{s}/SKILL.md" for s in SKILLS]
             + [f"skills/references/{r}.md" for r in REFS])
 
@@ -62,7 +62,7 @@ for s in SKILLS:
     check("description:" in f, f"{s}: has description")
     if "user-invocable: false" not in f: public.append(s)
 check(public == [], f"no user-invocable plugin skills (entry is the /ultrapower alias): {public}")
-check("argument-hint:" in fm(os.path.join(ROOT,"skills/ultrapower/SKILL.md"))[0], "router has argument-hint")
+check("argument-hint:" in fm(os.path.join(ROOT,"skills/run/SKILL.md"))[0], "router has argument-hint")
 
 print("\n== read-only enforcement ==")
 for s in ["explore","review"]:

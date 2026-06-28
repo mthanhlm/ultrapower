@@ -47,16 +47,18 @@ missing db means **not initialized**, not "unavailable" — don't fall back to g
 on it.)
 
 ## First-use initialization (local, safe → no confirmation)
-On entry, if CodeGraph is available and `<root>/.codegraph/` is **absent**:
+Normally the router auto-runs this on entry (via
+`skills/run/scripts/codegraph-ensure.sh`), so the index is already built by the time
+you get here. Do it manually only if that didn't run — e.g. a specialist was invoked
+directly and `<root>/.codegraph/` is still absent:
 1. **Ensure it's ignored** — if `<root>/.gitignore` has no `.codegraph/` line,
    append one. `codegraph init` does **not** edit `.gitignore`, so the fresh index
    would otherwise show up as untracked.
 2. **Initialize** — run `codegraph init <root>` (builds the local `.codegraph/`
    index; reversible with `codegraph uninit -f`).
-Tell the user one line: "Indexing this project for the first time…", then continue
-the original request. **Ask first** only if the repo is exceptionally large / the
-operation has meaningful resource impact, the index path is protected, or it would
-need installation/credentials. Skip only for non-repo requests.
+**Ask first** only if the repo is exceptionally large / the operation has meaningful
+resource impact, the index path is protected, or it would need installation/
+credentials. Skip only for non-repo requests.
 
 ## Refresh — sync after writes; the watcher covers the rest
 `codegraph serve` runs a file-watcher that **auto-syncs** on changes and reconciles

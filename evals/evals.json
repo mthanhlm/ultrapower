@@ -1,6 +1,6 @@
 {
   "plugin": "ultrapower",
-  "entry": "/ultrapower:ultrapower",
+  "entry": "/ultrapower",
   "note": "Routing + behavior catalog for Ultrapower. 'should_trigger' = Ultrapower/router should engage; 'expect_intent' = which specialist behavior should result; 'must_not' = behavior that would be a defect; 'assert' = observable facts the executable runner checks (file contents, exit status, working-tree, stream events). The executable behavioral suite lives in evals/run.sh (real `claude -p --plugin-dir` sessions): scenario ids tagged [det] assert hard facts; [beh] depend on model judgement. The 'regression-explore-no-leak' case is the permanent guard for the explore->implement/document tool-restriction leak.",
   "cases": [
     { "id": "trigger-bugfix",   "category": "router-trigger", "should_trigger": true, "prompt": "fix the off-by-one in the pagination helper", "expect_intent": "implement" },

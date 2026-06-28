@@ -6,8 +6,9 @@ description: >-
   answer an architecture/code question; review a diff or verify work; write
   documentation; plan or spec work; judge whether work is necessary; resume an
   active task; or any combination of these. Routes to the right specialist and
-  returns one result. /ultrapower:ultrapower is the guaranteed entry.
+  returns one result. Invoked from a plain-language request or the /ultrapower alias.
 argument-hint: <request>
+user-invocable: false
 ---
 
 # Ultrapower

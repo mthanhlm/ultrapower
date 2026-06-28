@@ -7,7 +7,7 @@ Exit 0 = all checks pass; exit 1 = at least one failure.
 Checks:
   - plugin.json / marketplace.json are valid JSON and agree on name + version
   - every skill SKILL.md frontmatter parses and has name + description
-  - exactly one public skill (router `ultrapower`); all specialists are user-invocable:false
+  - no user-invocable skills (router model-invocable; `/ultrapower` is an external user alias)
   - read-only specialists declare disallowed-tools; review is context:fork
   - all shared references exist; every ../references/*.md link resolves
   - no stale `up:*` / removed public commands; no packaged hook
@@ -61,8 +61,8 @@ for s in SKILLS:
     check(re.search(rf"^name:\s*{s}\b", f, re.M) is not None, f"{s}: name matches dir")
     check("description:" in f, f"{s}: has description")
     if "user-invocable: false" not in f: public.append(s)
-check(public == ["ultrapower"], f"exactly one public skill (router): {public}")
-check("argument-hint:" in fm(os.path.join(ROOT,"skills/ultrapower/SKILL.md"))[0], "ultrapower has argument-hint")
+check(public == [], f"no user-invocable plugin skills (entry is the /ultrapower alias): {public}")
+check("argument-hint:" in fm(os.path.join(ROOT,"skills/ultrapower/SKILL.md"))[0], "router has argument-hint")
 
 print("\n== read-only enforcement ==")
 for s in ["explore","review"]:

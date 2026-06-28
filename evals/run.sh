@@ -120,7 +120,7 @@ sc_combined_eid(){
 sc_explore_readonly(){
   echo "### [det] explore: read-only, enumerates callers"
   local R; R="$(mkrepo explore_ro)"; local h; h="$(git -C "$R" rev-parse HEAD)"
-  run_session "$R" '/ultrapower:ultrapower what functions call loginUser?' \
+  run_session "$R" '/ultrapower what functions call loginUser?' \
     --permission-mode bypassPermissions
   stream_has 'handleLogin' && ok "finds handleLogin caller" || bad "missed handleLogin"
   stream_has 'adminLogin'  && ok "finds adminLogin caller"  || bad "missed adminLogin"
@@ -132,7 +132,7 @@ sc_explore_readonly(){
 sc_implement_fix(){
   echo "### [det] implement: fix + verify + no-comment + preserve unrelated"
   local R; R="$(mkrepo impl_fix)"
-  run_session "$R" '/ultrapower:ultrapower sum(2,3) should be 5 but the test fails — fix it' \
+  run_session "$R" '/ultrapower sum(2,3) should be 5 but the test fails — fix it' \
     --permission-mode bypassPermissions
   test_green "$R" && ok "test passes after fix" || bad "test still red"
   ! file_has "$R/sum.js" '//' && ok "no narration comment added to the fix" || bad "comment added to fix"
@@ -143,7 +143,7 @@ sc_implement_fix(){
 sc_plan_only(){
   echo "### [det] plan-only: no working-tree changes, no active.md"
   local R; R="$(mkrepo plan_only)"
-  run_session "$R" '/ultrapower:ultrapower plan only (do not implement): how would you add a logout function?' \
+  run_session "$R" '/ultrapower plan only (do not implement): how would you add a logout function?' \
     --permission-mode bypassPermissions
   tree_clean "$R" && ok "no working-tree changes" || bad "plan wrote to the tree"
   [ ! -f "$R/.ultrapower/active.md" ] && ok "no .ultrapower/active.md created" || bad "active.md created unasked"
@@ -153,7 +153,7 @@ sc_plan_only(){
 sc_doc_chat(){
   echo "### [det] document: draft-in-chat does not write files"
   local R; R="$(mkrepo doc_chat)"
-  run_session "$R" '/ultrapower:ultrapower draft (in chat only, do not write any file) a short overview of src/auth.js' \
+  run_session "$R" '/ultrapower draft (in chat only, do not write any file) a short overview of src/auth.js' \
     --permission-mode bypassPermissions
   tree_clean "$R" && ok "no files written for an in-chat draft" || bad "doc-in-chat wrote a file"
   stream_has 'loginUser' && ok "draft references the real symbol" || bad "draft did not reference code"
@@ -167,7 +167,7 @@ sc_status_readonly(){
   echo "new staged"      >  "$R/staged.txt"; git -C "$R" add staged.txt
   echo "loose untracked" >  "$R/untracked.txt"          # untracked
   local before; before="$(git -C "$R" status --porcelain)"
-  run_session "$R" '/ultrapower:ultrapower what is the status of the current work?' \
+  run_session "$R" '/ultrapower what is the status of the current work?' \
     --permission-mode bypassPermissions
   [ "$(git -C "$R" status --porcelain)" = "$before" ] && ok "read-only: tree state identical after status" || bad "status changed the tree"
   [ ! -f "$R/.ultrapower/active.md" ] && ok "status did not create active.md" || bad "status wrote active.md"
@@ -180,7 +180,7 @@ sc_status_no_state(){
   echo "### [det] resume with no state: honest 'no resumable task'"
   local R; R="$(mkrepo no_state)"
   echo "// drive-by edit" >> "$R/sum.js"     # a dirty tree that is NOT an ultrapower task
-  run_session "$R" '/ultrapower:ultrapower resume the previous Ultrapower task' \
+  run_session "$R" '/ultrapower resume the previous Ultrapower task' \
     --permission-mode bypassPermissions
   stream_has 'no (resumable|active|saved|persisted|ultrapower).{0,30}task|nothing to resume|no .{0,20}task to resume' \
     && ok "says there is no resumable Ultrapower task" || bad "did not honestly report 'no resumable task'"
@@ -198,7 +198,7 @@ sc_safety_preserve(){
   echo "loose" > "$R/UNTRACKED.txt"                               # untracked
   # pre-existing edit in target: a marker line ABOVE the bug
   printf 'export const VERSION = "keep-me";\nexport function sum(a, b) {\n  return a - b;\n}\n' > "$R/sum.js"
-  run_session "$R" '/ultrapower:ultrapower sum(2,3) should be 5 but the test fails — fix only that bug' \
+  run_session "$R" '/ultrapower sum(2,3) should be 5 but the test fails — fix only that bug' \
     --permission-mode bypassPermissions
   file_has "$R/sum.js" 'a + b'                && ok "requested fix applied" || bad "fix not applied"
   file_has "$R/sum.js" 'keep-me'              && ok "pre-existing edit in target preserved" || bad "pre-existing target edit clobbered"
@@ -232,7 +232,7 @@ export function listUsers(db){ return db.users; }   // currently returns an ARRA
 J
   git -C "$R" add -A && git -C "$R" -c user.email=t@t -c user.name=t commit -qm api
   local before; before="$(cat "$R/src/api.js")"
-  run_session "$R" '/ultrapower:ultrapower make the listUsers response more convenient for the frontend' \
+  run_session "$R" '/ultrapower make the listUsers response more convenient for the frontend' \
     --permission-mode bypassPermissions
   stream_has 'recommend|suggest|option|which|would you|prefer|should I|\?' \
     && beh_ok "identifies the ambiguity and recommends + asks one question" || beh_bad "no recommendation/question surfaced"
@@ -257,7 +257,7 @@ assert.strictEqual(out.a.n, 1); assert.strictEqual(out.b.n, 2);
 console.log('ok');
 J
   git -C "$R" add -A && git -C "$R" -c user.email=t@t -c user.name=t commit -qm api
-  run_session "$R" '/ultrapower:ultrapower change listUsers to return an object keyed by user id instead of an array, update it, and verify with `node api.test.mjs`' \
+  run_session "$R" '/ultrapower change listUsers to return an object keyed by user id instead of an array, update it, and verify with `node api.test.mjs`' \
     --permission-mode bypassPermissions
   stream_has 'public|consumer|compatib|breaking|response shape|existing caller' \
     && beh_ok "surfaces a public-contract impact note" || beh_bad "no impact note surfaced"
@@ -274,7 +274,7 @@ function _fmt(x){ return String(x); }
 export function label(x){ return _fmt(x); }
 J
   git -C "$R" add -A && git -C "$R" -c user.email=t@t -c user.name=t commit -qm util
-  run_session "$R" '/ultrapower:ultrapower rename the private local helper _fmt to formatLabel for clarity' \
+  run_session "$R" '/ultrapower rename the private local helper _fmt to formatLabel for clarity' \
     --permission-mode bypassPermissions
   file_has "$R/src/util.js" 'formatLabel' && beh_ok "applied the reversible rename" || beh_bad "did not apply a safe reversible change"
 }
@@ -292,7 +292,7 @@ baseline_head: 0000000000000000000000000000000000000000
 outcome: add a logout() function
 remaining: write logout() and its test
 M
-  run_session "$R" '/ultrapower:ultrapower resume the active task' \
+  run_session "$R" '/ultrapower resume the active task' \
     --permission-mode bypassPermissions
   stream_has 'branch|mismatch|different|does not match|stale|baseline' && beh_ok "flags branch/baseline mismatch" || beh_bad "resumed without flagging the mismatch"
 }
@@ -317,7 +317,7 @@ J
   echo "unrelated user edit" >> "$R/KEEP.txt"   # pre-existing unrelated change to preserve across BOTH sessions
 
   echo "  -- SESSION 1 (fix add() only; persist remaining for cross-session resume) --"
-  run_session "$R" '/ultrapower:ultrapower This is cross-session work. Fix ONLY the add() bug in mathx.js now and verify add() with node. Do NOT fix mul() yet. Persist an Ultrapower active task in .ultrapower/active.md (outcome, baseline_head, branch, progress, verification, and that mul() remains) so a later session can resume.' \
+  run_session "$R" '/ultrapower This is cross-session work. Fix ONLY the add() bug in mathx.js now and verify add() with node. Do NOT fix mul() yet. Persist an Ultrapower active task in .ultrapower/active.md (outcome, baseline_head, branch, progress, verification, and that mul() remains) so a later session can resume.' \
     --permission-mode bypassPermissions
   local s1=0
   if [ -f "$R/.ultrapower/active.md" ]; then ok "session1 created .ultrapower/active.md"; s1=1; else bad "session1 did not persist active.md"; fi
@@ -329,7 +329,7 @@ J
   fi
 
   echo "  -- SESSION 2 (fresh session: resume and finish) --"
-  run_session "$R" '/ultrapower:ultrapower resume the active Ultrapower task and finish it; run `node mathx.test.mjs` to verify' \
+  run_session "$R" '/ultrapower resume the active Ultrapower task and finish it; run `node mathx.test.mjs` to verify' \
     --permission-mode bypassPermissions
   ( cd "$R" && node mathx.test.mjs ) >/dev/null 2>&1 && ok "session2: full test green (add AND mul fixed)" || bad "session2: test still failing"
   file_has "$R/KEEP.txt" 'unrelated user edit' && ok "unrelated user edit preserved across both sessions" || bad "unrelated edit lost"
@@ -370,7 +370,7 @@ decisions: the parseInt(s,10)*100 approach cannot recover cents — do NOT reuse
 remaining: use a cents-preserving parse, e.g. Math.round(parseFloat(s)*100)
 last_updated: seeded-failed-state
 M
-  run_session "$R" '/ultrapower:ultrapower resume the active Ultrapower task; read the recorded failure and try a DIFFERENT approach, then run `node parse.test.mjs` to verify' \
+  run_session "$R" '/ultrapower resume the active Ultrapower task; read the recorded failure and try a DIFFERENT approach, then run `node parse.test.mjs` to verify' \
     --permission-mode bypassPermissions
   ( cd "$R" && node parse.test.mjs ) >/dev/null 2>&1 && ok "resumed session fixes parseAmount and verification passes" || bad "still failing after resume"
   ! file_has "$R/parse.js" 'parseInt(s, 10) * 100' && ok "did NOT repeat the recorded failed approach (parseInt*100)" || bad "repeated the failed approach"
@@ -389,7 +389,7 @@ export function bucket(t){ return Math.floor(t / WINDOW_MS); }
 export function rename_me(x){ return x; }
 J
   git -C "$R" add -A && git -C "$R" -c user.email=t@t -c user.name=t commit -qm seed
-  run_session "$R" '/ultrapower:ultrapower rename the function rename_me to identity (just the rename)' \
+  run_session "$R" '/ultrapower rename the function rename_me to identity (just the rename)' \
     --permission-mode bypassPermissions
   file_has "$R/rate.js" 'MUST stay 60000 to match the gateway' && ok "kept the valuable invariant comment" || bad "dropped the invariant comment"
   file_has "$R/rate.js" 'function identity' && ok "applied the requested rename" || bad "rename not applied"
@@ -410,7 +410,7 @@ assert.strictEqual(clamp(250), 200);
 console.log('ok');
 J
   git -C "$R" add -A && git -C "$R" -c user.email=t@t -c user.name=t commit -qm seed
-  run_session "$R" '/ultrapower:ultrapower change clamp to cap at 200 instead of 100, then run `node clamp.test.mjs`' \
+  run_session "$R" '/ultrapower change clamp to cap at 200 instead of 100, then run `node clamp.test.mjs`' \
     --permission-mode bypassPermissions
   ( cd "$R" && node clamp.test.mjs ) >/dev/null 2>&1 && ok "behavior changed to cap at 200 (verified)" || bad "change not applied/verified"
   ! file_has "$R/clamp.js" 'maximum of 100' && ok "stale '100' comment corrected or removed" || bad "left the stale '100' comment"
@@ -426,7 +426,7 @@ export async function poll(fetchOnce, sleep){
 }
 J
   git -C "$R" add -A && git -C "$R" -c user.email=t@t -c user.name=t commit -qm seed
-  run_session "$R" '/ultrapower:ultrapower implement poll(fetchOnce, sleep): loop calling await fetchOnce(); if truthy, return it; otherwise await sleep(1100) and repeat. The 1100ms delay is REQUIRED because the upstream rate limiter uses a 1-second window plus jitter and rejects faster polling.' \
+  run_session "$R" '/ultrapower implement poll(fetchOnce, sleep): loop calling await fetchOnce(); if truthy, return it; otherwise await sleep(1100) and repeat. The 1100ms delay is REQUIRED because the upstream rate limiter uses a 1-second window plus jitter and rejects faster polling.' \
     --permission-mode bypassPermissions
   grep -qiE 'rate|window|jitter|upstream|1100' "$R/poll.js" && beh_ok "added a why-comment for the 1100ms constraint" || beh_bad "no why-comment for the non-obvious constraint"
   ! grep -qiE 'claude|\bAI\b|ultrapower|as requested|TODO: implement' "$R/poll.js" && beh_ok "no AI/narration/placeholder comment left" || beh_bad "left an AI/narration/placeholder comment"
@@ -436,7 +436,7 @@ J
 sc_comment_no_ai(){
   echo "### [det] comments: no AI/narration comment introduced on a simple fix"
   local R; R="$(mkrepo cmt_noai)"
-  run_session "$R" '/ultrapower:ultrapower sum(2,3) should be 5 but the test fails — fix it' \
+  run_session "$R" '/ultrapower sum(2,3) should be 5 but the test fails — fix it' \
     --permission-mode bypassPermissions
   test_green "$R" && ok "fix verified" || bad "fix not applied"
   ! grep -qiE 'claude|\bAI\b|ultrapower|prompt|updated logic|as requested|// (loop|check|return|increment|set|add) ' "$R/sum.js" \

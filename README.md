@@ -10,42 +10,21 @@ uses analysis as an excuse not to deliver.
 
 ## Using it
 
-**One public entry point:**
+Bring any request in plain language. Ultrapower works out the intent, pulls the
+project evidence it needs, routes to the right specialist, and returns one result.
 
-```
-/ultrapower:ultrapower <your request>
-```
+The router is **model-invocable** — describe what you want in normal conversation and
+it engages automatically. This is **best-effort**: a natural-language request may
+activate the router *or* select a matching specialist directly (each specialist is
+self-contained and applies its own safety/grounding/challenge/verification, so this
+is safe — it just may skip the router's combined-intent stitching).
 
-Examples:
+### Add the `/ultrapower` command (one-time setup)
 
-```
-/ultrapower:ultrapower fix the duplicated event publishing bug
-/ultrapower:ultrapower explain how authentication works across this project
-/ultrapower:ultrapower review the current diff for unnecessary complexity
-/ultrapower:ultrapower write deployment docs from the actual repository
-/ultrapower:ultrapower is this requested refactor actually necessary?
-/ultrapower:ultrapower investigate why the event is duplicated, fix it, and document it
-/ultrapower:ultrapower continue the active task
-```
-
-**`/ultrapower:ultrapower` guarantees** the router runs: intent classification,
-CodeGraph readiness, combined-intent sequencing, and resume reconciliation.
-
-You can also just describe what you want in normal conversation. Be aware this is
-**best-effort**: a natural-language request may activate the router *or* select a
-matching internal specialist directly (each specialist is self-contained and applies
-its own safety/grounding/challenge/verification, so this is safe — it just may skip
-the router's combined-intent stitching). For guaranteed orchestration, use
-`/ultrapower:ultrapower`.
-
-> **Why `/ultrapower:ultrapower` and not a bare `/ultrapower`?** Claude Code namespaces
-> every marketplace-plugin command and skill as `/<plugin>:<name>`; a bare
-> top-level `/ultrapower` isn't supported for plugins. There is one interface to learn.
-
-### Optional `/ultrapower` alias (opt-in; you create it)
-
-If you'd rather type `/ultrapower`, add a **personal standalone skill** (not the
-legacy `commands/` folder). Ultrapower will **not** modify your config for you:
+For a dedicated, guaranteed slash command, add a small **personal standalone skill**
+(a plugin can only register namespaced `/<plugin>:<name>` commands, never a bare
+top-level one — so the `/ultrapower` command lives in your own config, and Ultrapower
+won't create it for you):
 
 ```sh
 mkdir -p ~/.claude/skills/ultrapower
@@ -60,8 +39,21 @@ Use the Skill tool to invoke `ultrapower:ultrapower` with: $ARGUMENTS
 EOF
 ```
 
-Then `/ultrapower <request>` delegates to the router. It's your own user-level
-skill; delete the folder to remove it.
+Then `/ultrapower <request>` routes through Ultrapower and **guarantees** the router
+runs: intent classification, CodeGraph readiness, combined-intent sequencing, and
+resume reconciliation. Examples:
+
+```
+/ultrapower fix the duplicated event publishing bug
+/ultrapower explain how authentication works across this project
+/ultrapower review the current diff for unnecessary complexity
+/ultrapower write deployment docs from the actual repository
+/ultrapower is this requested refactor actually necessary?
+/ultrapower investigate why the event is duplicated, fix it, and document it
+/ultrapower continue the active task
+```
+
+It's your own user-level skill; delete the folder to remove it.
 
 ## What it does (one interface, specialists behind it)
 
@@ -164,7 +156,7 @@ duplicate the native prompts, and isn't a real security boundary.
 ## Develop / validate
 
 - `python3 scripts/validate.py` — structural + release validator (manifests,
-  frontmatter, reference path resolution, no stale `up:*`, no public specialist,
+  frontmatter, reference path resolution, no stale `up:*`, no user-invocable plugin skill,
   no unsupported CodeGraph tool hard-coded, no packaged hook).
 - `claude plugin validate .claude-plugin/plugin.json --strict` — official validation.
 - `evals/evals.json` + `bash evals/run.sh` — behavioral E2E suite of real headless

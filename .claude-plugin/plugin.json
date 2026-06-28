@@ -1,8 +1,8 @@
 {
-  "name": "up",
+  "name": "ultrapower",
   "displayName": "Ultrapower",
-  "version": "0.7.1",
-  "description": "Forces a task into small, controllable, hook-enforced increments: plan into \u22643pt steps, drive each test-first with codegraph grounding and a navigator review, pass a verify-gate before any step closes \u2014 all under an always-on lean ladder.",
+  "version": "1.0.0",
+  "description": "A lean, project-aware engineering companion: one entry point routes any request \u2014 implement, fix, investigate, explain, review, document, or plan \u2014 to the right on-demand specialist, grounded in CodeGraph, with verification proportional to risk and minimal ceremony.",
   "author": {
     "name": "mthanhlm"
   },
@@ -10,11 +10,11 @@
   "repository": "https://github.com/mthanhlm/ultrapower",
   "license": "MIT",
   "keywords": [
-    "tdd",
-    "xp",
-    "lean",
-    "workflow",
+    "engineering",
+    "code-intelligence",
+    "codegraph",
+    "router",
     "code-quality",
-    "codegraph"
+    "lean"
   ]
 }

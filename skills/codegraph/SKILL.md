@@ -1,0 +1,61 @@
+---
+name: codegraph
+description: >-
+  Ultrapower specialist (router-invoked): makes the project's CodeGraph index
+  ready for structural analysis — detects the CodeGraph MCP capability and the CLI
+  separately, checks whether the repo is indexed, and initializes the local index
+  when safe. Runs once when structural understanding will help.
+user-invocable: false
+---
+
+# CodeGraph bootstrap
+
+Make the project's CodeGraph index ready, then return so the original request can
+continue. Do this **once** per repo per session, only when structural understanding
+will help. Full policy: [codegraph policy](../references/codegraph.md).
+
+## Detect (MCP and CLI are separate things)
+- **MCP capability:** present iff `mcp__codegraph__*` tools exist this session.
+  **Default to `codegraph_explore`** for broad structural context. The narrower
+  tools (`codegraph_search`, `codegraph_callers`, `codegraph_callees`,
+  `codegraph_impact`, `codegraph_node`, `codegraph_status`, `codegraph_files`)
+  **may or may not be present** depending on the installed CodeGraph version and
+  MCP config — detect which `mcp__codegraph__*` tools actually exist before using
+  them and never hard-depend on one; otherwise rely on `codegraph_explore`.
+- **CLI:** present iff `command -v codegraph` succeeds (optionally `codegraph
+  --version`). The CLI may be absent even when the MCP works (it can be launched
+  via an absolute path, `npx`, or a wrapper), and vice-versa. CLI subcommand names
+  differ from MCP tool names — symbol search is `codegraph query` (not `codegraph
+  search`); `callers`/`callees`/`impact`/`files`/`status` exist, but there is no
+  `codegraph explore`/`node`.
+
+Handle the states distinctly — MCP+CLI / MCP-only / CLI-only / neither /
+indexed / not-indexed / old-incompatible version — don't collapse them to
+"installed vs not".
+
+## Is this repo indexed?
+With the CLI: `codegraph status --json` → `{"initialized":false}` = not indexed;
+`{"initialized":true,...}` = indexed. (The `codegraph_status` MCP tool *erroring*
+on a missing db means **not initialized**, not "unavailable" — don't fall back to
+grep on it.) Without the CLI, infer from whether MCP queries return data.
+
+## First-use initialization (local, safe → no confirmation)
+If CodeGraph is available and this repo is **not** indexed, initialize it once with
+`codegraph init` (builds the local `.codegraph/` index; reversible with `codegraph
+uninit -f`). Tell the user one line: "Indexing this project for the first time…".
+Then continue the original request. **Ask first** only if the repo is exceptionally
+large / the operation has meaningful resource impact, the index path is protected,
+or it would need installation/credentials. Skip entirely for trivial/local edits
+and non-repo requests.
+
+## Refresh — rely on the watcher; sync rarely
+`codegraph serve` runs a file-watcher that **auto-syncs** on changes, and reconciles
+on connect. Do **not** run `codegraph sync` every session. Sync manually only when:
+status shows pending/stale data, a query result is demonstrably behind the files,
+the watcher is disabled (`--no-watch`, slow `/mnt` filesystems), or a
+branch/worktree switch wasn't reconciled.
+
+## If CodeGraph isn't available
+Don't pretend it was used. Offer to install it (see policy — it changes config and
+asks for scope, so **ask first**), and meanwhile fall back to text search + focused
+reads. Complete the request regardless.

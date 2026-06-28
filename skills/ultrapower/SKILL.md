@@ -44,12 +44,14 @@ the same request — but because they're isolated, pass each one enough to work 
 the investigation/review question, the intended outcome, key constraints, and the
 findings form you need back.
 
-## CodeGraph readiness (once per repo, when structure matters)
-The **first** time a request needs structural understanding of this repo —
-implementing **or** investigating/reviewing across code — ensure the index is
-ready via `ultrapower:codegraph` (once). Skip it for trivial/local edits and for
-requests not about a source tree. Don't re-check on every request. Detection,
-init policy, and fallback: [codegraph policy](../references/codegraph.md).
+## CodeGraph readiness (init on entry; once per repo)
+On entry, if this repo has **no `.codegraph/` index** and CodeGraph is available,
+initialize it via `ultrapower:codegraph` before routing — `codegraph init` builds
+the local index once. After that, the index is ready for any request that needs
+structural understanding. Skip init only for requests not about a source tree;
+pause to ask first only if the repo is exceptionally large or the index path is
+protected. Don't re-check on every request. Detection, init policy, and fallback:
+[codegraph policy](../references/codegraph.md).
 
 ## Before any file write
 Load and apply [repository safety](../references/safety.md) (the full policy):

@@ -48,12 +48,15 @@ write Python/shell search scripts when these answer it; don't re-query the same
 thing; summarize, don't paste large graph output.
 
 ## Initialization & refresh
-Handled once per repo by `ultrapower:codegraph`: `codegraph init` when available and
-un-indexed (local, safe, reversible — no confirmation unless huge / protected path /
-needs install/credentials). The MCP server's **file-watcher auto-syncs** on change
-and reconciles on connect, so don't run `codegraph sync` routinely — only on an
-explicit staleness signal, a demonstrably-stale result, a disabled watcher
-(`--no-watch`), or an unreconciled branch/worktree switch.
+Init is handled by `ultrapower:codegraph`: on entry, if the repo has **no
+`.codegraph/` index** and CodeGraph is available, run `codegraph init` (local, safe,
+reversible — no confirmation unless huge / protected path / needs install/
+credentials). After `ultrapower:implement` finishes changing files, run `codegraph
+sync` once so the index reflects the edits. The MCP server's **file-watcher** also
+auto-syncs on change and reconciles on connect, so beyond that post-implement sync
+don't run `codegraph sync` routinely — only on an explicit staleness signal, a
+demonstrably-stale result, a disabled watcher (`--no-watch`), or an unreconciled
+branch/worktree switch.
 
 ## Installation (only ever offered, never run silently)
 If the CLI is absent, you may offer `codegraph install`. Be precise: it is

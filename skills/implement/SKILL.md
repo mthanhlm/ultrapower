@@ -95,6 +95,10 @@ independent fresh-eyes pass to `ultrapower:review` (isolated and read-only) — 
 [independent-review policy](../references/safety.md) defines what qualifies and
 exactly what to hand it. Otherwise self-review is enough.
 
+Once the diff is final and verified, if this repo is CodeGraph-indexed run
+`codegraph sync` once so the index reflects your changes
+([codegraph policy](../references/codegraph.md)).
+
 If this task persisted a `.ultrapower/active.md`, **delete it once the work is
 complete and verified** (the state no longer helps) — but keep it if work remains or
 a blocker stands ([persistence](../references/persistence.md)).

@@ -40,20 +40,21 @@ on a missing db means **not initialized**, not "unavailable" — don't fall back
 grep on it.) Without the CLI, infer from whether MCP queries return data.
 
 ## First-use initialization (local, safe → no confirmation)
-If CodeGraph is available and this repo is **not** indexed, initialize it once with
-`codegraph init` (builds the local `.codegraph/` index; reversible with `codegraph
-uninit -f`). Tell the user one line: "Indexing this project for the first time…".
-Then continue the original request. **Ask first** only if the repo is exceptionally
-large / the operation has meaningful resource impact, the index path is protected,
-or it would need installation/credentials. Skip entirely for trivial/local edits
-and non-repo requests.
+On entry, if CodeGraph is available and this repo has **no `.codegraph/` index**,
+initialize it once with `codegraph init` (builds the local `.codegraph/` index;
+reversible with `codegraph uninit -f`). Tell the user one line: "Indexing this
+project for the first time…". Then continue the original request. **Ask first** only
+if the repo is exceptionally large / the operation has meaningful resource impact,
+the index path is protected, or it would need installation/credentials. Skip only
+for non-repo requests.
 
-## Refresh — rely on the watcher; sync rarely
-`codegraph serve` runs a file-watcher that **auto-syncs** on changes, and reconciles
-on connect. Do **not** run `codegraph sync` every session. Sync manually only when:
-status shows pending/stale data, a query result is demonstrably behind the files,
-the watcher is disabled (`--no-watch`, slow `/mnt` filesystems), or a
-branch/worktree switch wasn't reconciled.
+## Refresh — sync after writes; the watcher covers the rest
+`codegraph serve` runs a file-watcher that **auto-syncs** on changes and reconciles
+on connect. After Ultrapower **changes files** (e.g. `ultrapower:implement`), run
+`codegraph sync` once so the index reflects the edits without waiting on the watcher.
+Otherwise don't sync every session — only when status shows pending/stale data, a
+query result is demonstrably behind the files, the watcher is disabled (`--no-watch`,
+slow `/mnt` filesystems), or a branch/worktree switch wasn't reconciled.
 
 ## If CodeGraph isn't available
 Don't pretend it was used. Offer to install it (see policy — it changes config and

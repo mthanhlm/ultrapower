@@ -1,5 +1,5 @@
 ---
-name: ultrapower
+name: run
 description: >-
   One entry point for any engineering request about this codebase: implement,
   fix, refactor, or debug a change; investigate, explain, or trace behavior;
@@ -45,13 +45,17 @@ the investigation/review question, the intended outcome, key constraints, and th
 findings form you need back.
 
 ## CodeGraph readiness (init on entry; once per repo)
-On entry, if this repo has **no `.codegraph/` index** and CodeGraph is available,
-initialize it via `ultrapower:codegraph` before routing — `codegraph init` builds
-the local index once. After that, the index is ready for any request that needs
-structural understanding. Skip init only for requests not about a source tree;
-pause to ask first only if the repo is exceptionally large or the index path is
-protected. Don't re-check on every request. Detection, init policy, and fallback:
-[codegraph policy](../references/codegraph.md).
+On entry, decide readiness from the **filesystem at the current repo root**, never
+from whether MCP queries return data — a *different* repo with the **same folder
+name** (or an MCP server launched outside this tree) can answer for the wrong
+codebase. Resolve the root with `git rev-parse --show-toplevel` and check for
+`<root>/.codegraph/` directly. If it is **absent** and CodeGraph is available,
+initialize via `ultrapower:codegraph` before routing — it ensures `.codegraph/` is
+in `.gitignore`, then runs `codegraph init` once. After that the index is ready for
+any request that needs structural understanding. Skip init only for requests not
+about a source tree; pause to ask first only if the repo is exceptionally large or
+the index path is protected. Don't re-check on every request. Detection, init
+policy, and fallback: [codegraph policy](../references/codegraph.md).
 
 ## Before any file write
 Load and apply [repository safety](../references/safety.md) (the full policy):

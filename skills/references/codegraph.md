@@ -48,15 +48,20 @@ write Python/shell search scripts when these answer it; don't re-query the same
 thing; summarize, don't paste large graph output.
 
 ## Initialization & refresh
-Init is handled by `ultrapower:codegraph`: on entry, if the repo has **no
-`.codegraph/` index** and CodeGraph is available, run `codegraph init` (local, safe,
+Init is handled by `ultrapower:codegraph`, keyed off the **filesystem at the current
+repo root** (`git rev-parse --show-toplevel`) — not off whether MCP queries return
+data, which a same-named sibling repo (or an MCP server launched outside this tree)
+can answer for. On entry, if `<root>/.codegraph/` is **absent** and CodeGraph is
+available: ensure `.codegraph/` is in `<root>/.gitignore` (append if missing —
+`codegraph init` does not add it), then run `codegraph init <root>` (local, safe,
 reversible — no confirmation unless huge / protected path / needs install/
-credentials). After `ultrapower:implement` finishes changing files, run `codegraph
-sync` once so the index reflects the edits. The MCP server's **file-watcher** also
-auto-syncs on change and reconciles on connect, so beyond that post-implement sync
-don't run `codegraph sync` routinely — only on an explicit staleness signal, a
-demonstrably-stale result, a disabled watcher (`--no-watch`), or an unreconciled
-branch/worktree switch.
+credentials). Pin MCP queries to this tree with `projectPath: <root>` so a same-named
+repo can't answer for it. After `ultrapower:implement` finishes changing files, run
+`codegraph sync` once so the index reflects the edits. The MCP server's
+**file-watcher** also auto-syncs on change and reconciles on connect, so beyond that
+post-implement sync don't run `codegraph sync` routinely — only on an explicit
+staleness signal, a demonstrably-stale result, a disabled watcher (`--no-watch`), or
+an unreconciled branch/worktree switch.
 
 ## Installation (only ever offered, never run silently)
 If the CLI is absent, you may offer `codegraph install`. Be precise: it is

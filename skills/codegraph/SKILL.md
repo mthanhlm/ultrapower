@@ -33,20 +33,30 @@ Handle the states distinctly — MCP+CLI / MCP-only / CLI-only / neither /
 indexed / not-indexed / old-incompatible version — don't collapse them to
 "installed vs not".
 
-## Is this repo indexed?
-With the CLI: `codegraph status --json` → `{"initialized":false}` = not indexed;
-`{"initialized":true,...}` = indexed. (The `codegraph_status` MCP tool *erroring*
-on a missing db means **not initialized**, not "unavailable" — don't fall back to
-grep on it.) Without the CLI, infer from whether MCP queries return data.
+## Is this repo indexed? (check THIS repo's root, deterministically)
+Resolve the repo root with `git rev-parse --show-toplevel`, then check for
+`<root>/.codegraph/` **on the filesystem** — that directory's presence at the
+current root is the authoritative signal. With the CLI you can confirm via
+`codegraph status --json`: `{"initialized":false}` = not indexed,
+`{"initialized":true,...}` = indexed — but also verify its reported `projectPath`
+**equals `<root>`**. Do **not** infer "indexed" from MCP queries merely returning
+data: a different repo with the **same folder name** (or an MCP server launched
+outside this tree) can answer for the wrong codebase. When you query MCP, pin it to
+this tree (`projectPath: <root>`). (The `codegraph_status` MCP tool *erroring* on a
+missing db means **not initialized**, not "unavailable" — don't fall back to grep
+on it.)
 
 ## First-use initialization (local, safe → no confirmation)
-On entry, if CodeGraph is available and this repo has **no `.codegraph/` index**,
-initialize it once with `codegraph init` (builds the local `.codegraph/` index;
-reversible with `codegraph uninit -f`). Tell the user one line: "Indexing this
-project for the first time…". Then continue the original request. **Ask first** only
-if the repo is exceptionally large / the operation has meaningful resource impact,
-the index path is protected, or it would need installation/credentials. Skip only
-for non-repo requests.
+On entry, if CodeGraph is available and `<root>/.codegraph/` is **absent**:
+1. **Ensure it's ignored** — if `<root>/.gitignore` has no `.codegraph/` line,
+   append one. `codegraph init` does **not** edit `.gitignore`, so the fresh index
+   would otherwise show up as untracked.
+2. **Initialize** — run `codegraph init <root>` (builds the local `.codegraph/`
+   index; reversible with `codegraph uninit -f`).
+Tell the user one line: "Indexing this project for the first time…", then continue
+the original request. **Ask first** only if the repo is exceptionally large / the
+operation has meaningful resource impact, the index path is protected, or it would
+need installation/credentials. Skip only for non-repo requests.
 
 ## Refresh — sync after writes; the watcher covers the rest
 `codegraph serve` runs a file-watcher that **auto-syncs** on changes and reconciles

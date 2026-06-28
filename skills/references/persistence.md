@@ -75,4 +75,6 @@ with the comment on its own line:
 # ultrapower transient task state
 .ultrapower/
 ```
-Never edit `.gitignore` automatically.
+Never auto-add `.ultrapower/` to `.gitignore` — only *suggest* it. (CodeGraph's
+`.codegraph/` index is handled separately by `ultrapower:codegraph`, which does
+append it.)

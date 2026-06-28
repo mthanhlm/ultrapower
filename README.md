@@ -35,7 +35,7 @@ description: Route any project request to Ultrapower.
 argument-hint: <request>
 disable-model-invocation: true
 ---
-Use the Skill tool to invoke `ultrapower:ultrapower` with: $ARGUMENTS
+Use the Skill tool to invoke `ultrapower:run` with: $ARGUMENTS
 EOF
 ```
 

@@ -2,6 +2,32 @@
 
 All notable changes to Ultrapower are documented here.
 
+## 1.1.0 — Guaranteed CodeGraph readiness + entry-name fix
+
+### Added
+- **`SessionStart` hook** (`hooks/codegraph-init.sh`, wired via `hooks/hooks.json`)
+  that guarantees the current repo is CodeGraph-indexed: on session start it adds
+  `.codegraph/` to `.gitignore` and runs `codegraph init` when the repo has no
+  index. Idempotent and fail-open — skips when the `codegraph` CLI is absent, the
+  directory isn't a git repo, or the index already exists, so it never blocks
+  session start.
+
+### Changed
+- **CodeGraph readiness is decided from the filesystem at the current repo root**
+  (`git rev-parse --show-toplevel` + `<root>/.codegraph/`), not from whether MCP
+  queries return data — a same-named sibling repo (or an MCP server launched outside
+  the tree) could otherwise answer for the wrong codebase and mask a missing index.
+  MCP queries are pinned with `projectPath: <root>`.
+- First-use init ensures `.codegraph/` is in `.gitignore` (the `codegraph init` CLI
+  does not add it); `ultrapower:implement` runs `codegraph sync` once after
+  finalizing a diff so the index reflects the change.
+
+### Fixed
+- **Entry skill realigned to `run`.** The router shipped as `skills/ultrapower`
+  (`/ultrapower:ultrapower`), diverging from the documented 1.0.0 design
+  (`skills/run`, `/ultrapower:run`). Renamed back to `skills/run`, so the namespaced
+  command is `/ultrapower:run`; the bare `/ultrapower` wrapper is unaffected.
+
 ## 1.0.0 — Router + on-demand specialists (breaking)
 
 Full rebuild around a single public entry point with hidden, model-invocable

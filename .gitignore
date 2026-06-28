@@ -1,0 +1,13 @@
+# CodeGraph index — regenerable structural truth, never committed
+.codegraph/
+
+# ultrapower transient state — session-scoped, never committed
+.ultrapower/state/
+.ultrapower/gate.toml
+.ultrapower/*.log
+
+# NOTE: .ultrapower/memory/*.toml IS committed (intent & decisions travel with the branch)
+
+# Python cache from the hook helpers
+__pycache__/
+*.pyc

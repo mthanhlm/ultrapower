@@ -1,0 +1,20 @@
+{
+  "name": "ultrapower",
+  "displayName": "Ultrapower",
+  "version": "2.0.0",
+  "description": "A codebase companion: understands your project, remembers what was done/doing/next, pushes back on debt before it is written, and ships lean, verified code. CodeGraph-aware, ceremony scaled to blast radius.",
+  "author": {
+    "name": "mthanhlm"
+  },
+  "homepage": "https://github.com/mthanhlm/ultrapower",
+  "repository": "https://github.com/mthanhlm/ultrapower",
+  "license": "MIT",
+  "keywords": [
+    "codegraph",
+    "companion",
+    "architecture",
+    "guardrails",
+    "technical-debt",
+    "lean"
+  ]
+}

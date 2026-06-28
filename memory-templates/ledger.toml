@@ -1,0 +1,14 @@
+schema_version = 1
+
+# Task ledger — what was done / is being done / is next. Append-mostly.
+# status: next | doing | done | abandoned
+# risk:   trivial | low | medium | high   (the adaptive sizing tier)
+#
+# [[task]]
+# id            = "T-0001"
+# status        = "doing"
+# risk          = "low"
+# summary       = "short description of the change"
+# touched_files = ["path/to/file"]
+# decisions     = ["ADR-0001"]
+# verified      = ""   # e.g. "codegraph affected -> 3 tests, all green"

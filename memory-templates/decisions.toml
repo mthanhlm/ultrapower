@@ -1,0 +1,15 @@
+schema_version = 1
+
+# Decision log (ADR-style), INCLUDING rejected alternatives — so a wrong path
+# ruled out once is not silently rebuilt later.
+# status: accepted | superseded | rejected-alternative
+#
+# [[adr]]
+# id           = "ADR-0001"
+# status       = "accepted"
+# title        = "short title of the decision"
+# decision     = "what we decided to do"
+# rejected     = "the alternative that was rejected (if any)"
+# why_rejected = "why it was wrong (wrong layer, bypasses X, creates debt, ...)"
+# invariants   = ["db-only-via-mcp"]   # invariants this decision establishes/relies on
+# links        = ["T-0001"]            # related ledger task ids

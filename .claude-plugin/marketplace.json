@@ -1,0 +1,24 @@
+{
+  "name": "ultrapower",
+  "owner": {
+    "name": "mthanhlm"
+  },
+  "description": "Ultrapower \u2014 a codebase companion for Claude Code: CodeGraph-aware, guards architecture debt, ceremony scaled to blast radius.",
+  "plugins": [
+    {
+      "name": "ultrapower",
+      "source": "./",
+      "description": "A codebase companion: understands the project, remembers done/doing/next, pushes back on debt before it is written (hard architecture guard), and ships lean, verified code. Auto CodeGraph lifecycle; ceremony scaled to blast radius.",
+      "version": "2.0.0",
+      "category": "workflow",
+      "keywords": [
+        "engineering",
+        "codegraph",
+        "companion",
+        "architecture",
+        "code-quality",
+        "lean"
+      ]
+    }
+  ]
+}

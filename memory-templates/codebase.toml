@@ -1,0 +1,36 @@
+schema_version = 1
+# generated_from_codegraph_at = ""   # set when reconciled against the index
+
+[architecture]
+summary = ""    # one line: what this service/app is and how work flows through it
+
+# Modules / layers. Referenced by name + path; CodeGraph resolves the symbols.
+# [[module]]
+# id   = "planner"
+# path = "internal/planner"
+# role = "decides which flow stages to (re)spawn"
+#
+# [[module]]
+# id   = "mcp-db"
+# path = "internal/mcp/db"
+# role = "centralized MCP tool layer; the ONLY sanctioned path to the database"
+
+# Architecture invariants. The PreToolUse guard enforces these on every edit:
+#   severity = "block" -> the edit is DENIED
+#   severity = "warn"  -> the user is ASKED to confirm
+# A match is: target path matches applies_to_paths (and not exempt_paths) AND the
+# new content contains one of forbid_imports (substring, or glob if it has '*').
+#
+# [[invariant]]
+# id               = "db-only-via-mcp"
+# rule             = "DB access only through the centralized MCP tool layer; no direct DB driver"
+# applies_to_paths = ["internal/**"]
+# forbid_imports   = ["database/sql", "github.com/jackc/pgx*"]
+# exempt_paths     = ["internal/mcp/db/**"]
+# state_access     = "report-back"   # consumers receive reported/event state, never poll the DB
+# severity         = "block"
+
+[conventions]
+# tests   = ""   # e.g. "table-driven, _test.go beside source"
+# errors  = ""   # e.g. "wrap with %w"
+# logging = ""   # e.g. "structured logger only, no prints"

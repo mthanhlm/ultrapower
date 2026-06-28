@@ -8,8 +8,8 @@
     {
       "name": "ultrapower",
       "source": "./",
-      "description": "One entry point (/ultrapower:run) routes any project request to the right specialist \u2014 implement, investigate, explain, review, document, or plan \u2014 grounded in CodeGraph, with verification proportional to risk.",
-      "version": "1.0.0",
+      "description": "One entry point (/ultrapower:ultrapower) routes any project request to the right specialist \u2014 implement, investigate, explain, review, document, or plan \u2014 grounded in CodeGraph, with verification proportional to risk.",
+      "version": "1.0.1",
       "category": "workflow",
       "keywords": [
         "engineering",

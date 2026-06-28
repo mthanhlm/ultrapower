@@ -13,22 +13,22 @@ uses analysis as an excuse not to deliver.
 **One public entry point:**
 
 ```
-/ultrapower:run <your request>
+/ultrapower:ultrapower <your request>
 ```
 
 Examples:
 
 ```
-/ultrapower:run fix the duplicated event publishing bug
-/ultrapower:run explain how authentication works across this project
-/ultrapower:run review the current diff for unnecessary complexity
-/ultrapower:run write deployment docs from the actual repository
-/ultrapower:run is this requested refactor actually necessary?
-/ultrapower:run investigate why the event is duplicated, fix it, and document it
-/ultrapower:run continue the active task
+/ultrapower:ultrapower fix the duplicated event publishing bug
+/ultrapower:ultrapower explain how authentication works across this project
+/ultrapower:ultrapower review the current diff for unnecessary complexity
+/ultrapower:ultrapower write deployment docs from the actual repository
+/ultrapower:ultrapower is this requested refactor actually necessary?
+/ultrapower:ultrapower investigate why the event is duplicated, fix it, and document it
+/ultrapower:ultrapower continue the active task
 ```
 
-**`/ultrapower:run` guarantees** the router runs: intent classification,
+**`/ultrapower:ultrapower` guarantees** the router runs: intent classification,
 CodeGraph readiness, combined-intent sequencing, and resume reconciliation.
 
 You can also just describe what you want in normal conversation. Be aware this is
@@ -36,9 +36,9 @@ You can also just describe what you want in normal conversation. Be aware this i
 matching internal specialist directly (each specialist is self-contained and applies
 its own safety/grounding/challenge/verification, so this is safe — it just may skip
 the router's combined-intent stitching). For guaranteed orchestration, use
-`/ultrapower:run`.
+`/ultrapower:ultrapower`.
 
-> **Why `/ultrapower:run` and not a bare `/ultrapower`?** Claude Code namespaces
+> **Why `/ultrapower:ultrapower` and not a bare `/ultrapower`?** Claude Code namespaces
 > every marketplace-plugin command and skill as `/<plugin>:<name>`; a bare
 > top-level `/ultrapower` isn't supported for plugins. There is one interface to learn.
 
@@ -56,7 +56,7 @@ description: Route any project request to Ultrapower.
 argument-hint: <request>
 disable-model-invocation: true
 ---
-Use the Skill tool to invoke `ultrapower:run` with: $ARGUMENTS
+Use the Skill tool to invoke `ultrapower:ultrapower` with: $ARGUMENTS
 EOF
 ```
 

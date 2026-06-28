@@ -1,12 +1,12 @@
 ---
-name: run
+name: ultrapower
 description: >-
   One entry point for any engineering request about this codebase: implement,
   fix, refactor, or debug a change; investigate, explain, or trace behavior;
   answer an architecture/code question; review a diff or verify work; write
   documentation; plan or spec work; judge whether work is necessary; resume an
   active task; or any combination of these. Routes to the right specialist and
-  returns one result. /ultrapower:run is the guaranteed entry.
+  returns one result. /ultrapower:ultrapower is the guaranteed entry.
 argument-hint: <request>
 ---
 

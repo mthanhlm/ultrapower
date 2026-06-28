@@ -7,7 +7,7 @@ Exit 0 = all checks pass; exit 1 = at least one failure.
 Checks:
   - plugin.json / marketplace.json are valid JSON and agree on name + version
   - every skill SKILL.md frontmatter parses and has name + description
-  - exactly one public skill (router `run`); all specialists are user-invocable:false
+  - exactly one public skill (router `ultrapower`); all specialists are user-invocable:false
   - read-only specialists declare disallowed-tools; review is context:fork
   - all shared references exist; every ../references/*.md link resolves
   - no stale `up:*` / removed public commands; no packaged hook
@@ -28,7 +28,7 @@ def fm(path):
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n", t, re.S)
     return (m.group(1), t[m.end():]) if m else (None, t)
 
-SKILLS = ["run","implement","explore","document","plan","review","codegraph"]
+SKILLS = ["ultrapower","implement","explore","document","plan","review","codegraph"]
 REFS   = ["challenge","comments","verify","safety","codegraph","persistence","contract"]
 REQUIRED = ([".claude-plugin/plugin.json",".claude-plugin/marketplace.json","README.md",
              "LICENSE","CHANGELOG.md"]
@@ -61,8 +61,8 @@ for s in SKILLS:
     check(re.search(rf"^name:\s*{s}\b", f, re.M) is not None, f"{s}: name matches dir")
     check("description:" in f, f"{s}: has description")
     if "user-invocable: false" not in f: public.append(s)
-check(public == ["run"], f"exactly one public skill (router): {public}")
-check("argument-hint:" in fm(os.path.join(ROOT,"skills/run/SKILL.md"))[0], "run has argument-hint")
+check(public == ["ultrapower"], f"exactly one public skill (router): {public}")
+check("argument-hint:" in fm(os.path.join(ROOT,"skills/ultrapower/SKILL.md"))[0], "ultrapower has argument-hint")
 
 print("\n== read-only enforcement ==")
 for s in ["explore","review"]:
